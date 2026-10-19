@@ -1,0 +1,2745 @@
+{
+  "version": "draft-0.5",
+  "cases": [
+    {
+      "name": "challenge request",
+      "operation": "createWalletChallenge",
+      "kind": "request",
+      "schema": "WalletChallengeRequest",
+      "body": {
+        "protocol": "evm",
+        "address": "0x0000000000000000000000000000000000000001",
+        "chainId": "1"
+      }
+    },
+    {
+      "name": "challenge response",
+      "operation": "createWalletChallenge",
+      "kind": "response",
+      "status": 201,
+      "schema": "WalletChallenge",
+      "body": {
+        "challengeId": "chl_example1",
+        "message": "example.test wants you to sign in (placeholder message)",
+        "expiresAt": "2026-10-18T12:05:00Z"
+      }
+    },
+    {
+      "name": "session request",
+      "operation": "createWalletSession",
+      "kind": "request",
+      "schema": "WalletSessionRequest",
+      "body": {
+        "challengeId": "chl_example1",
+        "signature": "0xplaceholder"
+      }
+    },
+    {
+      "name": "session view",
+      "operation": "createWalletSession",
+      "kind": "response",
+      "status": 200,
+      "schema": "SessionView",
+      "body": {
+        "user": {
+          "id": "usr_1",
+          "createdAt": "2026-10-18T12:00:00Z"
+        },
+        "account": {
+          "id": "acc_1",
+          "name": null
+        },
+        "membership": {
+          "id": "mem_1",
+          "accountId": "acc_1",
+          "userId": "usr_1",
+          "role": "owner"
+        },
+        "expiresAt": "2026-10-19T12:00:00Z"
+      }
+    },
+    {
+      "name": "link challenge request",
+      "operation": "createWalletChallenge",
+      "kind": "request",
+      "schema": "WalletChallengeRequest",
+      "body": {
+        "protocol": "tron",
+        "address": "TXYZPLACEHOLDERADDRESS0000000000000",
+        "chainId": "mainnet",
+        "purpose": "link"
+      }
+    },
+    {
+      "name": "link identity request",
+      "operation": "linkIdentity",
+      "kind": "request",
+      "schema": "WalletSessionRequest",
+      "body": {
+        "challengeId": "chl_example2",
+        "signature": "0xplaceholder"
+      }
+    },
+    {
+      "name": "link identity response",
+      "operation": "linkIdentity",
+      "kind": "response",
+      "status": 201,
+      "schema": "LinkedIdentity",
+      "body": {
+        "id": "idn_1",
+        "protocol": "tron",
+        "address": "TXYZPLACEHOLDERADDRESS0000000000000",
+        "chainPolicy": "tron:mainnet",
+        "createdAt": "2026-10-18T12:00:00Z"
+      }
+    },
+    {
+      "name": "identity list",
+      "operation": "listIdentities",
+      "kind": "response",
+      "status": 200,
+      "schema": "IdentityList",
+      "body": {
+        "items": [
+          {
+            "id": "idn_0",
+            "protocol": "evm",
+            "address": "0x0000000000000000000000000000000000000001",
+            "chainPolicy": "eip155",
+            "createdAt": "2026-10-18T11:00:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "name": "catalog",
+      "operation": "getCatalog",
+      "kind": "response",
+      "status": 200,
+      "schema": "CatalogResponse",
+      "body": {
+        "pricingVersion": "pv_1",
+        "items": [
+          {
+            "id": "example-model",
+            "provider": "example-provider",
+            "displayName": "Example Model",
+            "protocols": [
+              "openai_chat",
+              "anthropic_messages"
+            ],
+            "inputMicrousdPerMtok": "3000000",
+            "cachedInputMicrousdPerMtok": null,
+            "outputMicrousdPerMtok": "15000000",
+            "contextWindowTokens": "200000",
+            "updatedAt": "2026-10-18T12:00:00Z",
+            "source": "sample-seed"
+          }
+        ]
+      }
+    },
+    {
+      "name": "balance",
+      "operation": "getBalance",
+      "kind": "response",
+      "status": 200,
+      "schema": "Balance",
+      "body": {
+        "availableMicrousd": "9000000",
+        "heldMicrousd": "1000000",
+        "postedMicrousd": "10000000",
+        "asOf": "2026-10-18T12:00:00Z"
+      }
+    },
+    {
+      "name": "create key request",
+      "operation": "createKey",
+      "kind": "request",
+      "schema": "CreateKeyRequest",
+      "body": {
+        "name": "ci",
+        "projectId": "prj_1",
+        "scopes": [
+          "gateway:invoke"
+        ],
+        "modelAllowlist": [
+          "example-model"
+        ],
+        "spendCapMicrousd": "5000000",
+        "expiresAt": "2027-01-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "create key response (secret provided)",
+      "operation": "createKey",
+      "kind": "response",
+      "status": 201,
+      "schema": "CreateKeyResponse",
+      "body": {
+        "secretStatus": "PROVIDED",
+        "secret": "sk_placeholder_not_a_real_secret",
+        "key": {
+          "id": "key_1",
+          "name": "ci",
+          "projectId": "prj_1",
+          "prefix": "sk_plac",
+          "scopes": [
+            "gateway:invoke"
+          ],
+          "modelAllowlist": [
+            "example-model"
+          ],
+          "spendCapMicrousd": "5000000",
+          "expiresAt": "2027-01-01T00:00:00Z",
+          "createdAt": "2026-10-18T12:00:00Z",
+          "lastUsedAt": null,
+          "revokedAt": null
+        }
+      }
+    },
+    {
+      "name": "create key response (replay after window)",
+      "operation": "createKey",
+      "kind": "response",
+      "status": 201,
+      "schema": "CreateKeyResponse",
+      "body": {
+        "secretStatus": "NON_RECOVERABLE",
+        "secret": null,
+        "key": {
+          "id": "key_1",
+          "name": "ci",
+          "projectId": null,
+          "prefix": "sk_plac",
+          "scopes": [
+            "gateway:invoke"
+          ],
+          "modelAllowlist": [],
+          "spendCapMicrousd": null,
+          "expiresAt": null,
+          "createdAt": "2026-10-18T12:00:00Z",
+          "lastUsedAt": null,
+          "revokedAt": null
+        }
+      }
+    },
+    {
+      "name": "key list",
+      "operation": "listKeys",
+      "kind": "response",
+      "status": 200,
+      "schema": "KeyList",
+      "body": {
+        "items": [],
+        "nextCursor": null
+      }
+    },
+    {
+      "name": "deposit request",
+      "operation": "createDeposit",
+      "kind": "request",
+      "schema": "CreateDepositRequest",
+      "body": {
+        "asset": "EXAMPLE_ASSET",
+        "network": "example-network",
+        "amountAtomic": "10000000"
+      }
+    },
+    {
+      "name": "deposit created",
+      "operation": "createDeposit",
+      "kind": "response",
+      "status": 201,
+      "schema": "Deposit",
+      "body": {
+        "id": "dep_1",
+        "asset": "EXAMPLE_ASSET",
+        "decimals": 6,
+        "requiredConfirmations": 12,
+        "createdAt": "2026-10-18T12:00:00Z",
+        "address": "example-deposit-address",
+        "assetContract": null,
+        "network": "example-network",
+        "amountAtomic": "10000000",
+        "expiresAt": "2026-10-18T13:00:00Z",
+        "status": "CREATED",
+        "confirmations": 0,
+        "creditedMicrousd": null,
+        "ledgerTransactionId": null,
+        "reviewReason": null
+      }
+    },
+    {
+      "name": "deposit credited",
+      "operation": "getDeposit",
+      "kind": "response",
+      "status": 200,
+      "schema": "Deposit",
+      "body": {
+        "id": "dep_1",
+        "asset": "EXAMPLE_ASSET",
+        "decimals": 6,
+        "requiredConfirmations": 12,
+        "createdAt": "2026-10-18T12:00:00Z",
+        "address": "example-deposit-address",
+        "assetContract": "example-token-contract",
+        "network": "example-network",
+        "amountAtomic": "10000000",
+        "expiresAt": "2026-10-18T13:00:00Z",
+        "status": "CREDITED",
+        "confirmations": 20,
+        "creditedMicrousd": "10000000",
+        "ledgerTransactionId": "ltx_1",
+        "reviewReason": null
+      }
+    },
+    {
+      "name": "deposit under review",
+      "operation": "getDeposit",
+      "kind": "response",
+      "status": 200,
+      "schema": "Deposit",
+      "body": {
+        "id": "dep_2",
+        "asset": "EXAMPLE_ASSET",
+        "decimals": 6,
+        "requiredConfirmations": 12,
+        "createdAt": "2026-10-18T12:00:00Z",
+        "address": "example-deposit-address-2",
+        "assetContract": "example-token-contract",
+        "network": "example-network",
+        "amountAtomic": "10000000",
+        "expiresAt": "2026-10-18T13:00:00Z",
+        "status": "REVIEW_REQUIRED",
+        "confirmations": 3,
+        "creditedMicrousd": null,
+        "ledgerTransactionId": null,
+        "reviewReason": "UNDERPAID"
+      }
+    },
+    {
+      "name": "deposit list",
+      "operation": "listDeposits",
+      "kind": "response",
+      "status": 200,
+      "schema": "DepositList",
+      "body": {
+        "items": [],
+        "nextCursor": null
+      }
+    },
+    {
+      "name": "payment networks (none configured)",
+      "operation": "listPaymentNetworks",
+      "kind": "response",
+      "status": 200,
+      "schema": "PaymentNetworkList",
+      "body": {
+        "items": []
+      }
+    },
+    {
+      "name": "payment networks",
+      "operation": "listPaymentNetworks",
+      "kind": "response",
+      "status": 200,
+      "schema": "PaymentNetworkList",
+      "body": {
+        "items": [
+          {
+            "network": "example-network",
+            "asset": "EXAMPLE_ASSET",
+            "chainId": "example-chain",
+            "assetContract": "example-token-contract",
+            "decimals": 6,
+            "requiredConfirmations": 12,
+            "expirySeconds": 3600,
+            "minAmountAtomic": "1000000",
+            "maxAmountAtomic": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "usage page",
+      "operation": "listUsage",
+      "kind": "response",
+      "status": 200,
+      "schema": "UsagePage",
+      "body": {
+        "items": [
+          {
+            "id": "use_1",
+            "requestId": "req_1",
+            "correlationId": null,
+            "runId": "run_1",
+            "parentId": null,
+            "createdAt": "2026-10-18T12:00:00Z",
+            "model": "example-model",
+            "projectId": "prj_1",
+            "keyId": "key_1",
+            "status": "SETTLED",
+            "inputTokens": "1000",
+            "cachedInputTokens": "0",
+            "outputTokens": "500",
+            "chargeMicrousd": "10500",
+            "priceVersion": "pv_1"
+          }
+        ],
+        "nextCursor": "c_next"
+      }
+    },
+    {
+      "name": "ledger page",
+      "operation": "listLedger",
+      "kind": "response",
+      "status": 200,
+      "schema": "LedgerPage",
+      "body": {
+        "items": [
+          {
+            "id": "le_1",
+            "transactionId": "ltx_1",
+            "createdAt": "2026-10-18T11:00:00Z",
+            "kind": "deposit",
+            "amountMicrousd": "10000000",
+            "source": {
+              "type": "deposit",
+              "id": "dep_1"
+            },
+            "priceVersion": null
+          },
+          {
+            "id": "le_2",
+            "transactionId": "ltx_2",
+            "createdAt": "2026-10-18T12:00:00Z",
+            "kind": "spend",
+            "amountMicrousd": "-10500",
+            "source": {
+              "type": "request",
+              "id": "req_1"
+            },
+            "priceVersion": "pv_1"
+          }
+        ],
+        "nextCursor": null
+      }
+    },
+    {
+      "name": "export request",
+      "operation": "createExport",
+      "kind": "request",
+      "schema": "CreateExportRequest",
+      "body": {
+        "kind": "usage",
+        "filters": {
+          "from": "2026-10-01T00:00:00Z",
+          "model": "example-model"
+        },
+        "format": "csv"
+      }
+    },
+    {
+      "name": "export accepted",
+      "operation": "createExport",
+      "kind": "response",
+      "status": 202,
+      "schema": "ExportAccepted",
+      "body": {
+        "jobId": "job_1",
+        "status": "queued"
+      }
+    },
+    {
+      "name": "job succeeded",
+      "operation": "getJob",
+      "kind": "response",
+      "status": 200,
+      "schema": "Job",
+      "body": {
+        "jobId": "job_1",
+        "status": "succeeded",
+        "downloadUrl": "/api/jobs/job_1/download",
+        "expiresAt": "2026-10-18T13:00:00Z",
+        "summary": {
+          "rowCount": "1",
+          "totalMicrousd": "10500"
+        }
+      }
+    },
+    {
+      "name": "job failed",
+      "operation": "getJob",
+      "kind": "response",
+      "status": 200,
+      "schema": "Job",
+      "body": {
+        "jobId": "job_2",
+        "status": "failed",
+        "error": {
+          "code": "INTERNAL",
+          "message": "Export failed"
+        }
+      }
+    },
+    {
+      "name": "memory request",
+      "operation": "createMemory",
+      "kind": "request",
+      "schema": "CreateMemoryRequest",
+      "body": {
+        "text": "Prefer small PRs.",
+        "expectedVersion": 0,
+        "storageConsent": true,
+        "inject": true
+      }
+    },
+    {
+      "name": "memory created",
+      "operation": "createMemory",
+      "kind": "response",
+      "status": 201,
+      "schema": "Memory",
+      "body": {
+        "id": "mem_note_1",
+        "projectId": "prj_1",
+        "text": "Prefer small PRs.",
+        "version": 1,
+        "inject": true,
+        "expiresAt": null,
+        "createdAt": "2026-10-18T12:00:00Z",
+        "updatedAt": "2026-10-18T12:00:00Z"
+      }
+    },
+    {
+      "name": "password signup request",
+      "operation": "signupPassword",
+      "kind": "request",
+      "schema": "PasswordSetupRequest",
+      "body": {
+        "username": "alice.dev",
+        "password": "correct horse battery staple"
+      }
+    },
+    {
+      "name": "password signup response",
+      "operation": "signupPassword",
+      "kind": "response",
+      "status": 201,
+      "schema": "PasswordSignupResponse",
+      "body": {
+        "session": {
+          "user": {
+            "id": "usr_1",
+            "createdAt": "2026-10-18T12:00:00Z"
+          },
+          "account": {
+            "id": "acc_1",
+            "name": null
+          },
+          "membership": {
+            "id": "mem_1",
+            "accountId": "acc_1",
+            "userId": "usr_1",
+            "role": "owner"
+          },
+          "expiresAt": "2026-10-19T12:00:00Z",
+          "sessionKind": "password",
+          "restricted": false
+        },
+        "recovery": {
+          "recoveryCodes": [
+            "K7QM2-X9RTA",
+            "H4WZP-3NBVC"
+          ],
+          "expiresAt": "2027-01-16T12:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "password session request",
+      "operation": "createPasswordSession",
+      "kind": "request",
+      "schema": "PasswordSessionRequest",
+      "body": {
+        "username": "alice.dev",
+        "password": "correct horse battery staple"
+      }
+    },
+    {
+      "name": "password session view",
+      "operation": "createPasswordSession",
+      "kind": "response",
+      "status": 200,
+      "schema": "SessionView",
+      "body": {
+        "user": {
+          "id": "usr_1",
+          "createdAt": "2026-10-18T12:00:00Z"
+        },
+        "account": {
+          "id": "acc_1",
+          "name": null
+        },
+        "membership": {
+          "id": "mem_1",
+          "accountId": "acc_1",
+          "userId": "usr_1",
+          "role": "owner"
+        },
+        "expiresAt": "2026-10-19T12:00:00Z",
+        "sessionKind": "password",
+        "restricted": false
+      }
+    },
+    {
+      "name": "password recovery request",
+      "operation": "recoverPassword",
+      "kind": "request",
+      "schema": "PasswordRecoveryRequest",
+      "body": {
+        "username": "alice.dev",
+        "recoveryCode": "K7QM2-X9RTA",
+        "newPassword": "another long passphrase 42"
+      }
+    },
+    {
+      "name": "link password request",
+      "operation": "linkPassword",
+      "kind": "request",
+      "schema": "PasswordSetupRequest",
+      "body": {
+        "username": "alice.dev",
+        "password": "correct horse battery staple"
+      }
+    },
+    {
+      "name": "link password response",
+      "operation": "linkPassword",
+      "kind": "response",
+      "status": 201,
+      "schema": "RecoveryCodes",
+      "body": {
+        "recoveryCodes": [
+          "K7QM2-X9RTA",
+          "H4WZP-3NBVC"
+        ],
+        "expiresAt": "2027-01-16T12:00:00Z"
+      }
+    },
+    {
+      "name": "regenerate recovery codes",
+      "operation": "regenerateRecoveryCodes",
+      "kind": "response",
+      "status": 201,
+      "schema": "RecoveryCodes",
+      "body": {
+        "recoveryCodes": [
+          "K7QM2-X9RTA",
+          "H4WZP-3NBVC"
+        ],
+        "expiresAt": "2027-01-16T12:00:00Z"
+      }
+    },
+    {
+      "name": "telegram code request",
+      "operation": "createTelegramCode",
+      "kind": "request",
+      "schema": "TelegramCodeRequest",
+      "body": {
+        "purpose": "login"
+      }
+    },
+    {
+      "name": "telegram code response",
+      "operation": "createTelegramCode",
+      "kind": "response",
+      "status": 201,
+      "schema": "TelegramCode",
+      "body": {
+        "codeId": "tgc_1",
+        "code": "ABCD-2345",
+        "purpose": "login",
+        "expiresAt": "2026-10-18T12:10:00Z"
+      }
+    },
+    {
+      "name": "telegram session request",
+      "operation": "createTelegramSession",
+      "kind": "request",
+      "schema": "TelegramVerifyRequest",
+      "body": {
+        "codeId": "tgc_1"
+      }
+    },
+    {
+      "name": "telegram session view",
+      "operation": "createTelegramSession",
+      "kind": "response",
+      "status": 200,
+      "schema": "SessionView",
+      "body": {
+        "user": {
+          "id": "usr_1",
+          "createdAt": "2026-10-18T12:00:00Z"
+        },
+        "account": {
+          "id": "acc_1",
+          "name": null
+        },
+        "membership": {
+          "id": "mem_1",
+          "accountId": "acc_1",
+          "userId": "usr_1",
+          "role": "owner"
+        },
+        "expiresAt": "2026-10-19T12:00:00Z",
+        "sessionKind": "telegram",
+        "restricted": false
+      }
+    },
+    {
+      "name": "telegram link request",
+      "operation": "linkTelegram",
+      "kind": "request",
+      "schema": "TelegramVerifyRequest",
+      "body": {
+        "codeId": "tgc_2"
+      }
+    },
+    {
+      "name": "telegram link response",
+      "operation": "linkTelegram",
+      "kind": "response",
+      "status": 201,
+      "schema": "TelegramIdentity",
+      "body": {
+        "id": "tgi_1",
+        "telegramUserId": "123456789",
+        "createdAt": "2026-10-18T12:00:00Z"
+      }
+    },
+    {
+      "name": "key session request",
+      "operation": "createKeySession",
+      "kind": "request",
+      "schema": "KeySessionRequest",
+      "body": {
+        "apiKey": "sk_placeholder_not_a_real_key"
+      }
+    },
+    {
+      "name": "key session view",
+      "operation": "createKeySession",
+      "kind": "response",
+      "status": 200,
+      "schema": "SessionView",
+      "body": {
+        "user": {
+          "id": "usr_1",
+          "createdAt": "2026-10-18T12:00:00Z"
+        },
+        "account": {
+          "id": "acc_1",
+          "name": null
+        },
+        "membership": {
+          "id": "mem_1",
+          "accountId": "acc_1",
+          "userId": "usr_1",
+          "role": "owner"
+        },
+        "expiresAt": "2026-10-19T12:00:00Z",
+        "sessionKind": "api_key",
+        "restricted": true
+      }
+    },
+    {
+      "name": "step-up with password",
+      "operation": "stepUp",
+      "kind": "request",
+      "schema": "StepUpRequest",
+      "body": {
+        "password": "correct horse battery staple"
+      }
+    },
+    {
+      "name": "step-up with telegram code",
+      "operation": "stepUp",
+      "kind": "request",
+      "schema": "StepUpRequest",
+      "body": {
+        "codeId": "tgc_3"
+      }
+    },
+    {
+      "name": "auth methods",
+      "operation": "getAuthMethods",
+      "kind": "response",
+      "status": 200,
+      "schema": "AuthMethods",
+      "body": {
+        "wallets": [],
+        "telegram": [
+          {
+            "id": "tgi_1",
+            "telegramUserId": "123456789",
+            "createdAt": "2026-10-18T12:00:00Z"
+          }
+        ],
+        "password": {
+          "id": "pwd_1",
+          "username": "alice.dev",
+          "unusedRecoveryCodes": 8
+        }
+      }
+    },
+    {
+      "name": "renewed session",
+      "operation": "renewSession",
+      "kind": "response",
+      "status": 200,
+      "schema": "SessionView",
+      "body": {
+        "user": {
+          "id": "usr_1",
+          "createdAt": "2026-10-18T12:00:00Z"
+        },
+        "account": {
+          "id": "acc_1",
+          "name": null
+        },
+        "membership": {
+          "id": "mem_1",
+          "accountId": "acc_1",
+          "userId": "usr_1",
+          "role": "owner"
+        },
+        "expiresAt": "2026-10-19T12:00:00Z",
+        "sessionKind": "wallet",
+        "restricted": false
+      }
+    },
+    {
+      "name": "agent runs",
+      "operation": "listAgentRuns",
+      "kind": "response",
+      "status": 200,
+      "schema": "AgentRunPage",
+      "body": {
+        "items": [
+          {
+            "runId": "run_1",
+            "correlation": "known",
+            "projectId": "prj_1",
+            "requestCount": "3",
+            "firstAt": "2026-10-18T12:00:00Z",
+            "lastAt": "2026-10-18T12:05:00Z",
+            "inputTokens": "3000",
+            "cachedInputTokens": "100",
+            "outputTokens": "900",
+            "chargeMicrousd": "31500",
+            "failedCount": "0",
+            "pendingCount": "1",
+            "limitRejectedCount": "0"
+          },
+          {
+            "runId": null,
+            "correlation": "unknown",
+            "projectId": null,
+            "requestCount": "2",
+            "firstAt": "2026-10-18T12:01:00Z",
+            "lastAt": "2026-10-18T12:02:00Z",
+            "inputTokens": "10",
+            "cachedInputTokens": "0",
+            "outputTokens": "5",
+            "chargeMicrousd": "7",
+            "failedCount": "1",
+            "pendingCount": "0",
+            "limitRejectedCount": "1"
+          }
+        ],
+        "nextCursor": null
+      }
+    },
+    {
+      "name": "create project request",
+      "operation": "createProject",
+      "kind": "request",
+      "schema": "CreateProjectRequest",
+      "body": {
+        "name": "Billing service"
+      }
+    },
+    {
+      "name": "project created",
+      "operation": "createProject",
+      "kind": "response",
+      "schema": "Project",
+      "body": {
+        "id": "prj_1",
+        "name": "Billing service",
+        "createdAt": "2026-10-18T12:00:00Z"
+      },
+      "status": 201
+    },
+    {
+      "name": "project list",
+      "operation": "listProjects",
+      "kind": "response",
+      "schema": "ProjectList",
+      "body": {
+        "items": [
+          {
+            "id": "prj_1",
+            "name": "Billing service",
+            "createdAt": "2026-10-18T12:00:00Z"
+          }
+        ],
+        "nextCursor": null
+      },
+      "status": 200
+    },
+    {
+      "name": "project",
+      "operation": "getProject",
+      "kind": "response",
+      "schema": "Project",
+      "body": {
+        "id": "prj_1",
+        "name": "Billing service",
+        "createdAt": "2026-10-18T12:00:00Z"
+      },
+      "status": 200
+    },
+    {
+      "name": "memory list",
+      "operation": "listMemories",
+      "kind": "response",
+      "schema": "MemoryList",
+      "body": {
+        "items": [
+          {
+            "id": "mem_note_1",
+            "projectId": "prj_1",
+            "text": "Prefer small PRs.",
+            "version": 2,
+            "inject": true,
+            "expiresAt": "2026-11-17T12:00:00Z",
+            "createdAt": "2026-10-18T12:00:00Z",
+            "updatedAt": "2026-10-18T12:00:00Z"
+          }
+        ],
+        "nextCursor": null
+      },
+      "status": 200
+    },
+    {
+      "name": "memory",
+      "operation": "getMemory",
+      "kind": "response",
+      "schema": "Memory",
+      "body": {
+        "id": "mem_note_1",
+        "projectId": "prj_1",
+        "text": "Prefer small PRs.",
+        "version": 2,
+        "inject": true,
+        "expiresAt": "2026-11-17T12:00:00Z",
+        "createdAt": "2026-10-18T12:00:00Z",
+        "updatedAt": "2026-10-18T12:00:00Z"
+      },
+      "status": 200
+    },
+    {
+      "name": "memory update request",
+      "operation": "updateMemory",
+      "kind": "request",
+      "schema": "UpdateMemoryRequest",
+      "body": {
+        "text": "Prefer small, reviewable PRs.",
+        "expectedVersion": 1,
+        "storageConsent": true,
+        "inject": false
+      }
+    },
+    {
+      "name": "memory updated",
+      "operation": "updateMemory",
+      "kind": "response",
+      "schema": "Memory",
+      "body": {
+        "id": "mem_note_1",
+        "projectId": "prj_1",
+        "text": "Prefer small PRs.",
+        "version": 2,
+        "inject": true,
+        "expiresAt": "2026-11-17T12:00:00Z",
+        "createdAt": "2026-10-18T12:00:00Z",
+        "updatedAt": "2026-10-18T12:00:00Z"
+      },
+      "status": 200
+    },
+    {
+      "name": "memory usage list",
+      "operation": "listMemoryUsage",
+      "kind": "response",
+      "schema": "MemoryUsageList",
+      "body": {
+        "items": [
+          {
+            "id": "mus_1",
+            "memoryId": "mem_note_1",
+            "version": 2,
+            "requestId": "req_1",
+            "status": "injected",
+            "reason": null,
+            "createdAt": "2026-10-18T12:00:00Z"
+          }
+        ],
+        "nextCursor": null
+      },
+      "status": 200
+    },
+    {
+      "name": "memory export",
+      "operation": "exportMemories",
+      "kind": "response",
+      "schema": "MemoryExport",
+      "body": {
+        "projectId": "prj_1",
+        "exportedAt": "2026-10-18T12:00:00Z",
+        "settings": {
+          "projectId": "prj_1",
+          "retentionDays": 30,
+          "version": 1,
+          "updatedAt": "2026-10-18T12:00:00Z"
+        },
+        "notes": [
+          {
+            "id": "mem_note_1",
+            "projectId": "prj_1",
+            "text": "Prefer small PRs.",
+            "version": 2,
+            "inject": true,
+            "expiresAt": "2026-11-17T12:00:00Z",
+            "createdAt": "2026-10-18T12:00:00Z",
+            "updatedAt": "2026-10-18T12:00:00Z"
+          }
+        ],
+        "usage": [
+          {
+            "id": "mus_1",
+            "memoryId": "mem_note_1",
+            "version": 2,
+            "requestId": "req_1",
+            "status": "injected",
+            "reason": null,
+            "createdAt": "2026-10-18T12:00:00Z"
+          }
+        ],
+        "usageTruncated": false,
+        "noteCount": "1"
+      },
+      "status": 200
+    },
+    {
+      "name": "memory settings",
+      "operation": "getMemorySettings",
+      "kind": "response",
+      "schema": "MemorySettings",
+      "body": {
+        "projectId": "prj_1",
+        "retentionDays": 30,
+        "version": 1,
+        "updatedAt": "2026-10-18T12:00:00Z"
+      },
+      "status": 200
+    },
+    {
+      "name": "memory settings request",
+      "operation": "updateMemorySettings",
+      "kind": "request",
+      "schema": "UpdateMemorySettingsRequest",
+      "body": {
+        "retentionDays": 30,
+        "expectedVersion": 0
+      }
+    },
+    {
+      "name": "memory settings updated",
+      "operation": "updateMemorySettings",
+      "kind": "response",
+      "schema": "MemorySettings",
+      "body": {
+        "projectId": "prj_1",
+        "retentionDays": 30,
+        "version": 1,
+        "updatedAt": "2026-10-18T12:00:00Z"
+      },
+      "status": 200
+    },
+    {
+      "name": "optimization controls",
+      "operation": "listOptimizationControls",
+      "kind": "response",
+      "schema": "OptimizationControlList",
+      "body": {
+        "items": [
+          {
+            "id": "batching",
+            "feature": "batching",
+            "title": "Batching",
+            "description": "Would queue non-urgent requests.",
+            "privacyImpact": "Requests would be held server-side.",
+            "tradeoff": "Adds latency.",
+            "availability": "unavailable",
+            "unavailableReason": "No provider batch API is integrated."
+          },
+          {
+            "id": "cache_accounting",
+            "feature": "cache_accounting",
+            "title": "Prompt-cache accounting",
+            "description": "Reports provider-reported cached tokens.",
+            "privacyImpact": "None.",
+            "tradeoff": "Accounting only.",
+            "availability": "available",
+            "unavailableReason": null
+          }
+        ]
+      },
+      "status": 200
+    },
+    {
+      "name": "optimization policy",
+      "operation": "getOptimizationPolicy",
+      "kind": "response",
+      "schema": "OptimizationPolicy",
+      "body": {
+        "version": 3,
+        "config": {
+          "cacheAccounting": {
+            "enabled": true
+          },
+          "conciseGuidance": {
+            "enabled": true,
+            "text": "Answer in at most five sentences."
+          },
+          "projectContext": {
+            "enabled": true,
+            "maxNotes": 5,
+            "maxChars": 2000
+          },
+          "routeComparison": {
+            "enabled": true
+          },
+          "batching": {
+            "enabled": false
+          },
+          "loopGuard": {
+            "enabled": true,
+            "mode": "advisory",
+            "threshold": 5,
+            "windowSeconds": 600,
+            "enforcementConsent": false
+          }
+        },
+        "createdAt": "2026-10-18T12:00:00Z",
+        "createdByUserId": "usr_1",
+        "revertedFrom": null,
+        "note": null
+      },
+      "status": 200
+    },
+    {
+      "name": "default optimization policy",
+      "operation": "getOptimizationPolicy",
+      "kind": "response",
+      "schema": "OptimizationPolicy",
+      "body": {
+        "version": 0,
+        "config": {
+          "cacheAccounting": {
+            "enabled": false
+          },
+          "conciseGuidance": {
+            "enabled": false,
+            "text": ""
+          },
+          "projectContext": {
+            "enabled": false,
+            "maxNotes": 5,
+            "maxChars": 2000
+          },
+          "routeComparison": {
+            "enabled": false
+          },
+          "batching": {
+            "enabled": false
+          },
+          "loopGuard": {
+            "enabled": false,
+            "mode": "advisory",
+            "threshold": 5,
+            "windowSeconds": 600,
+            "enforcementConsent": false
+          }
+        },
+        "createdAt": null,
+        "createdByUserId": null,
+        "revertedFrom": null,
+        "note": null
+      },
+      "status": 200
+    },
+    {
+      "name": "optimization policy request",
+      "operation": "updateOptimizationPolicy",
+      "kind": "request",
+      "schema": "UpdateOptimizationPolicyRequest",
+      "body": {
+        "expectedVersion": 2,
+        "config": {
+          "cacheAccounting": {
+            "enabled": true
+          },
+          "conciseGuidance": {
+            "enabled": true,
+            "text": "Answer in at most five sentences."
+          },
+          "projectContext": {
+            "enabled": true,
+            "maxNotes": 5,
+            "maxChars": 2000
+          },
+          "routeComparison": {
+            "enabled": true
+          },
+          "batching": {
+            "enabled": false
+          },
+          "loopGuard": {
+            "enabled": true,
+            "mode": "advisory",
+            "threshold": 5,
+            "windowSeconds": 600,
+            "enforcementConsent": false
+          }
+        },
+        "note": "Turn on accounting and advisory LoopGuard"
+      }
+    },
+    {
+      "name": "optimization policy updated",
+      "operation": "updateOptimizationPolicy",
+      "kind": "response",
+      "schema": "OptimizationPolicy",
+      "body": {
+        "version": 3,
+        "config": {
+          "cacheAccounting": {
+            "enabled": true
+          },
+          "conciseGuidance": {
+            "enabled": true,
+            "text": "Answer in at most five sentences."
+          },
+          "projectContext": {
+            "enabled": true,
+            "maxNotes": 5,
+            "maxChars": 2000
+          },
+          "routeComparison": {
+            "enabled": true
+          },
+          "batching": {
+            "enabled": false
+          },
+          "loopGuard": {
+            "enabled": true,
+            "mode": "advisory",
+            "threshold": 5,
+            "windowSeconds": 600,
+            "enforcementConsent": false
+          }
+        },
+        "createdAt": "2026-10-18T12:00:00Z",
+        "createdByUserId": "usr_1",
+        "revertedFrom": null,
+        "note": null
+      },
+      "status": 200
+    },
+    {
+      "name": "optimization revert request",
+      "operation": "revertOptimizationPolicy",
+      "kind": "request",
+      "schema": "RevertOptimizationPolicyRequest",
+      "body": {
+        "toVersion": 1,
+        "expectedVersion": 3
+      }
+    },
+    {
+      "name": "optimization reverted",
+      "operation": "revertOptimizationPolicy",
+      "kind": "response",
+      "schema": "OptimizationPolicy",
+      "body": {
+        "version": 4,
+        "config": {
+          "cacheAccounting": {
+            "enabled": true
+          },
+          "conciseGuidance": {
+            "enabled": true,
+            "text": "Answer in at most five sentences."
+          },
+          "projectContext": {
+            "enabled": true,
+            "maxNotes": 5,
+            "maxChars": 2000
+          },
+          "routeComparison": {
+            "enabled": true
+          },
+          "batching": {
+            "enabled": false
+          },
+          "loopGuard": {
+            "enabled": true,
+            "mode": "advisory",
+            "threshold": 5,
+            "windowSeconds": 600,
+            "enforcementConsent": false
+          }
+        },
+        "createdAt": "2026-10-18T12:00:00Z",
+        "createdByUserId": "usr_1",
+        "revertedFrom": 1,
+        "note": "Revert to version 1"
+      },
+      "status": 200
+    },
+    {
+      "name": "optimization versions",
+      "operation": "listOptimizationPolicyVersions",
+      "kind": "response",
+      "schema": "OptimizationPolicyVersionList",
+      "body": {
+        "items": [
+          {
+            "version": 3,
+            "config": {
+              "cacheAccounting": {
+                "enabled": true
+              },
+              "conciseGuidance": {
+                "enabled": true,
+                "text": "Answer in at most five sentences."
+              },
+              "projectContext": {
+                "enabled": true,
+                "maxNotes": 5,
+                "maxChars": 2000
+              },
+              "routeComparison": {
+                "enabled": true
+              },
+              "batching": {
+                "enabled": false
+              },
+              "loopGuard": {
+                "enabled": true,
+                "mode": "advisory",
+                "threshold": 5,
+                "windowSeconds": 600,
+                "enforcementConsent": false
+              }
+            },
+            "createdAt": "2026-10-18T12:00:00Z",
+            "createdByUserId": "usr_1",
+            "revertedFrom": null,
+            "note": null
+          }
+        ],
+        "nextCursor": null
+      },
+      "status": 200
+    },
+    {
+      "name": "preview request",
+      "operation": "previewOptimization",
+      "kind": "request",
+      "schema": "PreviewOptimizationRequest",
+      "body": {
+        "model": "sample-fast-1",
+        "projectId": "prj_1",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Summarise the release notes."
+          }
+        ]
+      }
+    },
+    {
+      "name": "preview response",
+      "operation": "previewOptimization",
+      "kind": "response",
+      "schema": "PreviewOptimizationResponse",
+      "body": {
+        "policyVersion": 3,
+        "changes": [
+          {
+            "feature": "concise_guidance",
+            "status": "applied",
+            "reason": null,
+            "detail": {
+              "addedUtf8Bytes": 33
+            }
+          },
+          {
+            "feature": "project_context",
+            "status": "skipped",
+            "reason": "no_eligible_notes",
+            "detail": {}
+          }
+        ],
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer in at most five sentences.",
+            "origin": "guidance"
+          },
+          {
+            "role": "user",
+            "content": "Summarise the release notes.",
+            "origin": "request"
+          }
+        ],
+        "originalUtf8Bytes": "28",
+        "alteredUtf8Bytes": "61"
+      },
+      "status": 200
+    },
+    {
+      "name": "evidence list",
+      "operation": "listOptimizationEvidence",
+      "kind": "response",
+      "schema": "OptimizationEvidenceList",
+      "body": {
+        "items": [
+          {
+            "id": "oev_1",
+            "requestId": "req_1",
+            "policyVersion": 3,
+            "feature": "cache_accounting",
+            "status": "applied",
+            "reason": "accounting_only",
+            "detail": {
+              "usage": "recorded",
+              "inputTokens": "900",
+              "cachedInputTokens": "100",
+              "outputTokens": "40"
+            },
+            "routeComparison": null,
+            "createdAt": "2026-10-18T12:00:00Z"
+          },
+          {
+            "id": "oev_2",
+            "requestId": "req_1",
+            "policyVersion": 3,
+            "feature": "route_comparison",
+            "status": "applied",
+            "reason": "informational_only",
+            "detail": {
+              "routeChanged": false,
+              "usage": "recorded"
+            },
+            "routeComparison": {
+              "basis": "recorded_usage_at_current_rates",
+              "actualChargeMicrousd": "270",
+              "alternatives": [
+                {
+                  "model": "sample-mini-1",
+                  "estimatedChargeMicrousd": "170"
+                }
+              ]
+            },
+            "createdAt": "2026-10-18T12:00:00Z"
+          }
+        ],
+        "nextCursor": null
+      },
+      "status": 200
+    },
+    {
+      "name": "report ok",
+      "operation": "getOptimizationReport",
+      "kind": "response",
+      "schema": "OptimizationReport",
+      "body": {
+        "period": {
+          "from": null,
+          "to": null
+        },
+        "cacheAccounting": {
+          "status": "ok",
+          "requests": "2",
+          "inputTokens": "1800",
+          "cachedInputTokens": "200",
+          "outputTokens": "80",
+          "baselineMicrousd": "540",
+          "actualMicrousd": "535",
+          "differenceMicrousd": "5"
+        },
+        "conciseGuidance": {
+          "status": "insufficient_data",
+          "reason": "No baseline.",
+          "appliedRequests": "2",
+          "addedUtf8Bytes": "66"
+        },
+        "projectContext": {
+          "status": "insufficient_data",
+          "reason": "No baseline.",
+          "appliedRequests": "0",
+          "addedUtf8Bytes": "0"
+        },
+        "routeComparison": {
+          "status": "informational",
+          "evaluatedRequests": "2"
+        },
+        "loopGuard": {
+          "advisoryRequests": "1",
+          "blockedRequests": "0",
+          "note": "Counts of triggers."
+        }
+      },
+      "status": 200
+    },
+    {
+      "name": "report insufficient",
+      "operation": "getOptimizationReport",
+      "kind": "response",
+      "schema": "OptimizationReport",
+      "body": {
+        "period": {
+          "from": "2026-10-18T12:00:00Z",
+          "to": null
+        },
+        "cacheAccounting": {
+          "status": "insufficient_data",
+          "reason": "No request ran with cache accounting enabled in this period.",
+          "requests": "0"
+        },
+        "conciseGuidance": {
+          "status": "insufficient_data",
+          "reason": "No baseline.",
+          "appliedRequests": "0",
+          "addedUtf8Bytes": "0"
+        },
+        "projectContext": {
+          "status": "insufficient_data",
+          "reason": "No baseline.",
+          "appliedRequests": "0",
+          "addedUtf8Bytes": "0"
+        },
+        "routeComparison": {
+          "status": "informational",
+          "evaluatedRequests": "0"
+        },
+        "loopGuard": {
+          "advisoryRequests": "0",
+          "blockedRequests": "0",
+          "note": "Counts of triggers."
+        }
+      },
+      "status": 200
+    },
+    {
+      "name": "channels",
+      "operation": "listChannels",
+      "kind": "response",
+      "schema": "ChannelStatusList",
+      "body": {
+        "items": [
+          {
+            "channel": "telegram",
+            "available": true,
+            "mode": "fake",
+            "note": "In-process test double."
+          },
+          {
+            "channel": "whatsapp",
+            "available": false,
+            "mode": "unconfigured",
+            "note": "No channel credentials are configured."
+          }
+        ]
+      },
+      "status": 200
+    },
+    {
+      "name": "pairing request",
+      "operation": "createPairing",
+      "kind": "request",
+      "schema": "CreatePairingRequest",
+      "body": {
+        "channel": "telegram"
+      }
+    },
+    {
+      "name": "pairing code",
+      "operation": "createPairing",
+      "kind": "response",
+      "schema": "PairingCode",
+      "body": {
+        "pairingId": "pair_1",
+        "channel": "telegram",
+        "code": "ABCD-2345",
+        "expiresAt": "2026-10-18T12:10:00Z"
+      },
+      "status": 201
+    },
+    {
+      "name": "confirm pairing request",
+      "operation": "confirmPairing",
+      "kind": "request",
+      "schema": "ConfirmPairingRequest",
+      "body": {
+        "events": [
+          "insufficient_funds",
+          "deposit_needs_review"
+        ]
+      }
+    },
+    {
+      "name": "binding created",
+      "operation": "confirmPairing",
+      "kind": "response",
+      "schema": "Binding",
+      "body": {
+        "id": "bnd_1",
+        "channel": "telegram",
+        "destination": "\u2022\u2022\u2022\u20224567",
+        "events": [
+          "insufficient_funds"
+        ],
+        "createdAt": "2026-10-18T12:00:00Z"
+      },
+      "status": 201
+    },
+    {
+      "name": "binding list",
+      "operation": "listBindings",
+      "kind": "response",
+      "schema": "BindingList",
+      "body": {
+        "items": [
+          {
+            "id": "bnd_1",
+            "channel": "telegram",
+            "destination": "\u2022\u2022\u2022\u20224567",
+            "events": [
+              "insufficient_funds"
+            ],
+            "createdAt": "2026-10-18T12:00:00Z"
+          }
+        ]
+      },
+      "status": 200
+    },
+    {
+      "name": "update binding request",
+      "operation": "updateBinding",
+      "kind": "request",
+      "schema": "UpdateBindingRequest",
+      "body": {
+        "events": [
+          "insufficient_funds",
+          "loop_guard"
+        ]
+      }
+    },
+    {
+      "name": "binding updated",
+      "operation": "updateBinding",
+      "kind": "response",
+      "schema": "Binding",
+      "body": {
+        "id": "bnd_1",
+        "channel": "telegram",
+        "destination": "\u2022\u2022\u2022\u20224567",
+        "events": [
+          "insufficient_funds",
+          "loop_guard"
+        ],
+        "createdAt": "2026-10-18T12:00:00Z"
+      },
+      "status": 200
+    },
+    {
+      "name": "test accepted",
+      "operation": "sendTestNotification",
+      "kind": "response",
+      "schema": "TestNotificationAccepted",
+      "body": {
+        "eventId": "nev_1",
+        "bindingId": "bnd_1"
+      },
+      "status": 202
+    },
+    {
+      "name": "delivery list",
+      "operation": "listDeliveries",
+      "kind": "response",
+      "schema": "DeliveryList",
+      "body": {
+        "items": [
+          {
+            "id": "dlv_1",
+            "bindingId": "bnd_1",
+            "channel": "telegram",
+            "eventKind": "test",
+            "status": "sent",
+            "attempts": 1,
+            "errorCode": null,
+            "createdAt": "2026-10-18T12:00:00Z",
+            "sentAt": "2026-10-18T12:00:00Z"
+          },
+          {
+            "id": "dlv_2",
+            "bindingId": "bnd_1",
+            "channel": "telegram",
+            "eventKind": "insufficient_funds",
+            "status": "failed",
+            "attempts": 3,
+            "errorCode": "CHANNEL_DOWN",
+            "createdAt": "2026-10-18T12:00:00Z",
+            "sentAt": null
+          }
+        ],
+        "nextCursor": null
+      },
+      "status": 200
+    },
+    {
+      "name": "feature flags",
+      "operation": "getFeatures",
+      "kind": "response",
+      "status": 200,
+      "schema": "FeatureFlags",
+      "body": {
+        "repositoryGraph": false,
+        "designBeta": true
+      }
+    },
+    {
+      "name": "repository import accepted",
+      "operation": "createRepositoryImport",
+      "kind": "response",
+      "status": 202,
+      "schema": "RepositoryImportAccepted",
+      "body": {
+        "importId": "rim_1",
+        "status": "queued"
+      }
+    },
+    {
+      "name": "repository import list",
+      "operation": "listRepositoryImports",
+      "kind": "response",
+      "status": 200,
+      "schema": "RepositoryImportList",
+      "body": {
+        "items": [
+          {
+            "id": "rim_1",
+            "projectId": "prj_1",
+            "name": "acme",
+            "format": "zip",
+            "status": "succeeded",
+            "uploadBytes": "48211",
+            "stats": {
+              "files": 14,
+              "skipped": 9,
+              "edges": 18,
+              "edgesTruncated": false,
+              "externalPackages": 7,
+              "unresolvedImports": 1,
+              "languages": {
+                "typescript": 4,
+                "python": 3,
+                "go": 2,
+                "other": 5
+              },
+              "skippedByReason": {
+                "vendor": 1,
+                "secret": 2,
+                "generated": 2,
+                "binary": 2,
+                "too_large": 1,
+                "secret_content": 1
+              }
+            },
+            "error": null,
+            "limits": {
+              "maxArchiveBytes": 26214400,
+              "maxEntries": 20000,
+              "maxFiles": 5000,
+              "maxTotalBytes": 104857600,
+              "maxFileBytes": 1048576,
+              "maxPathBytes": 512,
+              "maxDepth": 32,
+              "maxRatio": 100,
+              "maxEdges": 50000
+            },
+            "createdAt": "2026-10-18T12:00:00Z",
+            "startedAt": "2026-10-18T12:00:00Z",
+            "finishedAt": "2026-10-18T12:00:00Z"
+          },
+          {
+            "id": "rim_2",
+            "projectId": "prj_1",
+            "name": "acme",
+            "format": "zip",
+            "status": "failed",
+            "uploadBytes": "48211",
+            "stats": null,
+            "error": {
+              "code": "ARCHIVE_UNSAFE_PATH",
+              "message": "Entry name escapes the archive root (..)"
+            },
+            "limits": {
+              "maxArchiveBytes": 26214400,
+              "maxEntries": 20000,
+              "maxFiles": 5000,
+              "maxTotalBytes": 104857600,
+              "maxFileBytes": 1048576,
+              "maxPathBytes": 512,
+              "maxDepth": 32,
+              "maxRatio": 100,
+              "maxEdges": 50000
+            },
+            "createdAt": "2026-10-18T12:00:00Z",
+            "startedAt": "2026-10-18T12:00:00Z",
+            "finishedAt": "2026-10-18T12:00:00Z"
+          }
+        ],
+        "nextCursor": null
+      }
+    },
+    {
+      "name": "repository import succeeded",
+      "operation": "getRepositoryImport",
+      "kind": "response",
+      "status": 200,
+      "schema": "RepositoryImport",
+      "body": {
+        "id": "rim_1",
+        "projectId": "prj_1",
+        "name": "acme",
+        "format": "zip",
+        "status": "succeeded",
+        "uploadBytes": "48211",
+        "stats": {
+          "files": 14,
+          "skipped": 9,
+          "edges": 18,
+          "edgesTruncated": false,
+          "externalPackages": 7,
+          "unresolvedImports": 1,
+          "languages": {
+            "typescript": 4,
+            "python": 3,
+            "go": 2,
+            "other": 5
+          },
+          "skippedByReason": {
+            "vendor": 1,
+            "secret": 2,
+            "generated": 2,
+            "binary": 2,
+            "too_large": 1,
+            "secret_content": 1
+          }
+        },
+        "error": null,
+        "limits": {
+          "maxArchiveBytes": 26214400,
+          "maxEntries": 20000,
+          "maxFiles": 5000,
+          "maxTotalBytes": 104857600,
+          "maxFileBytes": 1048576,
+          "maxPathBytes": 512,
+          "maxDepth": 32,
+          "maxRatio": 100,
+          "maxEdges": 50000
+        },
+        "createdAt": "2026-10-18T12:00:00Z",
+        "startedAt": "2026-10-18T12:00:00Z",
+        "finishedAt": "2026-10-18T12:00:00Z"
+      }
+    },
+    {
+      "name": "repository import rejected archive",
+      "operation": "getRepositoryImport",
+      "kind": "response",
+      "status": 200,
+      "schema": "RepositoryImport",
+      "body": {
+        "id": "rim_2",
+        "projectId": "prj_1",
+        "name": "acme",
+        "format": "zip",
+        "status": "failed",
+        "uploadBytes": "48211",
+        "stats": null,
+        "error": {
+          "code": "ARCHIVE_UNSAFE_PATH",
+          "message": "Entry name escapes the archive root (..)"
+        },
+        "limits": {
+          "maxArchiveBytes": 26214400,
+          "maxEntries": 20000,
+          "maxFiles": 5000,
+          "maxTotalBytes": 104857600,
+          "maxFileBytes": 1048576,
+          "maxPathBytes": 512,
+          "maxDepth": 32,
+          "maxRatio": 100,
+          "maxEdges": 50000
+        },
+        "createdAt": "2026-10-18T12:00:00Z",
+        "startedAt": "2026-10-18T12:00:00Z",
+        "finishedAt": "2026-10-18T12:00:00Z"
+      }
+    },
+    {
+      "name": "repository file list",
+      "operation": "listRepositoryFiles",
+      "kind": "response",
+      "status": 200,
+      "schema": "RepositoryFileList",
+      "body": {
+        "items": [
+          {
+            "path": "src/util.ts",
+            "language": "typescript",
+            "sizeBytes": 120,
+            "lineCount": 4,
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "outgoing": 1,
+            "incoming": 2
+          }
+        ],
+        "nextCursor": "eyJzIjoiMSJ9"
+      }
+    },
+    {
+      "name": "repository edge list with evidence",
+      "operation": "listRepositoryEdges",
+      "kind": "response",
+      "status": 200,
+      "schema": "RepositoryEdgeList",
+      "body": {
+        "items": [
+          {
+            "id": "edg_1",
+            "from": "src/app.ts",
+            "line": 2,
+            "kind": "import",
+            "specifier": "./util",
+            "to": {
+              "kind": "file",
+              "path": "src/util.ts",
+              "name": null
+            },
+            "snippet": "import { helper } from \"./util\";",
+            "language": "typescript"
+          },
+          {
+            "id": "edg_2",
+            "from": "src/app.ts",
+            "line": 4,
+            "kind": "import",
+            "specifier": "react",
+            "to": {
+              "kind": "external",
+              "path": null,
+              "name": "react"
+            },
+            "snippet": "import React from \"react\";",
+            "language": "typescript"
+          }
+        ],
+        "nextCursor": null
+      }
+    },
+    {
+      "name": "repository graph",
+      "operation": "getRepositoryGraph",
+      "kind": "response",
+      "status": 200,
+      "schema": "RepositoryGraph",
+      "body": {
+        "importId": "rim_1",
+        "depth": 2,
+        "nodes": [
+          {
+            "path": "src",
+            "files": 4,
+            "languages": {
+              "typescript": 4
+            }
+          },
+          {
+            "path": "lib",
+            "files": 3,
+            "languages": {
+              "python": 3
+            }
+          }
+        ],
+        "edges": [
+          {
+            "from": "src",
+            "to": "lib",
+            "count": 2,
+            "evidence": [
+              {
+                "path": "src/app.ts",
+                "line": 9
+              }
+            ]
+          }
+        ],
+        "external": [
+          {
+            "name": "react",
+            "count": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "repository export",
+      "operation": "exportRepositoryImport",
+      "kind": "response",
+      "status": 200,
+      "schema": "RepositoryExport",
+      "body": {
+        "exportedAt": "2026-10-18T12:00:00Z",
+        "label": "derived by static analysis; not executed, not verified",
+        "import": {
+          "id": "rim_1",
+          "projectId": "prj_1",
+          "name": "acme",
+          "format": "zip",
+          "status": "succeeded",
+          "uploadBytes": "48211",
+          "stats": {
+            "files": 14,
+            "skipped": 9,
+            "edges": 18,
+            "edgesTruncated": false,
+            "externalPackages": 7,
+            "unresolvedImports": 1,
+            "languages": {
+              "typescript": 4,
+              "python": 3,
+              "go": 2,
+              "other": 5
+            },
+            "skippedByReason": {
+              "vendor": 1,
+              "secret": 2,
+              "generated": 2,
+              "binary": 2,
+              "too_large": 1,
+              "secret_content": 1
+            }
+          },
+          "error": null,
+          "limits": {
+            "maxArchiveBytes": 26214400,
+            "maxEntries": 20000,
+            "maxFiles": 5000,
+            "maxTotalBytes": 104857600,
+            "maxFileBytes": 1048576,
+            "maxPathBytes": 512,
+            "maxDepth": 32,
+            "maxRatio": 100,
+            "maxEdges": 50000
+          },
+          "createdAt": "2026-10-18T12:00:00Z",
+          "startedAt": "2026-10-18T12:00:00Z",
+          "finishedAt": "2026-10-18T12:00:00Z"
+        },
+        "files": [
+          {
+            "path": "src/util.ts",
+            "language": "typescript",
+            "sizeBytes": 120,
+            "lineCount": 4,
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "outgoing": 1,
+            "incoming": 2
+          }
+        ],
+        "skipped": [
+          {
+            "path": ".env",
+            "reason": "secret"
+          }
+        ],
+        "edges": [
+          {
+            "id": "edg_1",
+            "from": "src/app.ts",
+            "line": 2,
+            "kind": "import",
+            "specifier": "./util",
+            "to": {
+              "kind": "file",
+              "path": "src/util.ts",
+              "name": null
+            },
+            "snippet": "import { helper } from \"./util\";",
+            "language": "typescript"
+          },
+          {
+            "id": "edg_2",
+            "from": "src/app.ts",
+            "line": 4,
+            "kind": "import",
+            "specifier": "react",
+            "to": {
+              "kind": "external",
+              "path": null,
+              "name": "react"
+            },
+            "snippet": "import React from \"react\";",
+            "language": "typescript"
+          }
+        ]
+      }
+    },
+    {
+      "name": "design request",
+      "operation": "createDesign",
+      "kind": "request",
+      "schema": "CreateDesignRequest",
+      "body": {
+        "title": "Invoice export",
+        "brief": "A small service that exports invoices as PDF files on demand."
+      }
+    },
+    {
+      "name": "design accepted with cost quote",
+      "operation": "createDesign",
+      "kind": "response",
+      "status": 202,
+      "schema": "DesignRevisionAccepted",
+      "body": {
+        "designId": "dsn_1",
+        "revision": 1,
+        "status": "queued",
+        "maxCostMicrousd": "2850"
+      }
+    },
+    {
+      "name": "design list",
+      "operation": "listDesigns",
+      "kind": "response",
+      "status": 200,
+      "schema": "DesignList",
+      "body": {
+        "items": [
+          {
+            "id": "dsn_1",
+            "projectId": "prj_1",
+            "title": "Invoice export",
+            "model": "sample-fast-1",
+            "latestRevision": 2,
+            "latestStatus": "failed",
+            "totalChargedMicrousd": "194",
+            "createdAt": "2026-10-18T12:00:00Z",
+            "updatedAt": "2026-10-18T12:00:00Z"
+          }
+        ],
+        "nextCursor": null
+      }
+    },
+    {
+      "name": "design with a charged proposal and a malformed revision",
+      "operation": "getDesign",
+      "kind": "response",
+      "status": 200,
+      "schema": "Design",
+      "body": {
+        "id": "dsn_1",
+        "projectId": "prj_1",
+        "title": "Invoice export",
+        "brief": "A small service that exports invoices as PDF files on demand.",
+        "model": "sample-fast-1",
+        "latestRevision": 2,
+        "totalChargedMicrousd": "194",
+        "aiGenerated": true,
+        "revisions": [
+          {
+            "number": 1,
+            "kind": "proposal",
+            "instruction": null,
+            "status": "succeeded",
+            "model": "sample-fast-1",
+            "aiGenerated": true,
+            "document": {
+              "title": "Proposal: Invoice export",
+              "summary": "A small service that exports invoices as PDF.",
+              "sections": [
+                {
+                  "heading": "Overview",
+                  "body": "Customers request a PDF; a worker renders it."
+                }
+              ],
+              "components": [
+                {
+                  "name": "Export worker",
+                  "purpose": "Renders PDFs from stored invoices"
+                }
+              ],
+              "risks": [
+                "PDF rendering time grows with invoice size"
+              ]
+            },
+            "failure": null,
+            "cost": {
+              "state": "charged",
+              "maxMicrousd": "2850",
+              "chargedMicrousd": "194",
+              "requestId": "req_design_1"
+            },
+            "createdAt": "2026-10-18T12:00:00Z",
+            "finishedAt": "2026-10-18T12:00:00Z"
+          },
+          {
+            "number": 2,
+            "kind": "revision",
+            "instruction": "Add audit logging",
+            "status": "failed",
+            "model": "sample-fast-1",
+            "aiGenerated": true,
+            "document": null,
+            "failure": {
+              "code": "MALFORMED_OUTPUT",
+              "message": "The model's output was not a valid design (output is not valid JSON). The call was made and is billed as reported."
+            },
+            "cost": {
+              "state": "charged",
+              "maxMicrousd": "3100",
+              "chargedMicrousd": "201",
+              "requestId": "req_design_2"
+            },
+            "createdAt": "2026-10-18T12:00:00Z",
+            "finishedAt": "2026-10-18T12:00:00Z"
+          }
+        ],
+        "createdAt": "2026-10-18T12:00:00Z",
+        "updatedAt": "2026-10-18T12:00:00Z"
+      }
+    },
+    {
+      "name": "design revision request",
+      "operation": "createDesignRevision",
+      "kind": "request",
+      "schema": "CreateDesignRevisionRequest",
+      "body": {
+        "instruction": "Add audit logging",
+        "baseRevision": 1
+      }
+    },
+    {
+      "name": "design revision accepted",
+      "operation": "createDesignRevision",
+      "kind": "response",
+      "status": 202,
+      "schema": "DesignRevisionAccepted",
+      "body": {
+        "designId": "dsn_1",
+        "revision": 2,
+        "status": "queued",
+        "maxCostMicrousd": "3100"
+      }
+    },
+    {
+      "name": "design json export",
+      "operation": "exportDesign",
+      "kind": "response",
+      "status": 200,
+      "schema": "DesignExport",
+      "body": {
+        "format": "llmcrypto-design-export-v1",
+        "label": "AI-generated proposal. Not reviewed, not verified, never executed or deployed by this service.",
+        "exportedAt": "2026-10-18T12:00:00Z",
+        "design": {
+          "id": "dsn_1",
+          "projectId": "prj_1",
+          "title": "Invoice export",
+          "brief": "A small service that exports invoices as PDF files on demand."
+        },
+        "revision": {
+          "number": 1,
+          "kind": "proposal",
+          "instruction": null,
+          "createdAt": "2026-10-18T12:00:00Z"
+        },
+        "generation": {
+          "model": "sample-fast-1",
+          "requestId": "req_design_1",
+          "chargedMicrousd": "194"
+        },
+        "document": {
+          "title": "Proposal: Invoice export",
+          "summary": "A small service that exports invoices as PDF.",
+          "sections": [
+            {
+              "heading": "Overview",
+              "body": "Customers request a PDF; a worker renders it."
+            }
+          ],
+          "components": [
+            {
+              "name": "Export worker",
+              "purpose": "Renders PDFs from stored invoices"
+            }
+          ],
+          "risks": [
+            "PDF rendering time grows with invoice size"
+          ]
+        }
+      }
+    },
+    {
+      "name": "customer audit view shows an operator action without the operator",
+      "operation": "listAuditEvents",
+      "kind": "response",
+      "status": 200,
+      "schema": "AuditEventList",
+      "body": {
+        "items": [
+          {
+            "id": "aud_1",
+            "action": "operator.adjustment_approved",
+            "actor": "operator",
+            "actorUserId": null,
+            "targetType": "adjustment",
+            "targetId": "adj_1",
+            "details": {
+              "action": "credit",
+              "amountMicrousd": "4999999",
+              "ledgerTransactionId": "ltx_1"
+            },
+            "createdAt": "2026-10-18T12:00:00Z"
+          },
+          {
+            "id": "aud_0",
+            "action": "key.created",
+            "actor": "member",
+            "actorUserId": "usr_1",
+            "targetType": "api_key",
+            "targetId": "key_1",
+            "details": {},
+            "createdAt": "2026-10-18T12:00:00Z"
+          }
+        ],
+        "nextCursor": null
+      }
+    },
+    {
+      "name": "operator session elevated",
+      "operation": "getOperatorSession",
+      "kind": "response",
+      "status": 200,
+      "schema": "OperatorSession",
+      "body": {
+        "isOperator": true,
+        "elevated": true,
+        "elevatedUntil": "2026-10-18T12:15:00Z"
+      }
+    },
+    {
+      "name": "operator session start",
+      "operation": "startOperatorSession",
+      "kind": "response",
+      "status": 200,
+      "schema": "OperatorSession",
+      "body": {
+        "isOperator": true,
+        "elevated": true,
+        "elevatedUntil": "2026-10-18T12:15:00Z"
+      }
+    },
+    {
+      "name": "reconciliation summary",
+      "operation": "getReconciliationSummary",
+      "kind": "response",
+      "status": 200,
+      "schema": "ReconciliationSummary",
+      "body": {
+        "generatedAt": "2026-10-18T12:00:00Z",
+        "openReviews": 2,
+        "openAlerts": 1,
+        "stuckReservations": 0,
+        "ledgerMismatches": 0,
+        "pendingAdjustments": 1
+      }
+    },
+    {
+      "name": "payment review queue",
+      "operation": "listPaymentReviews",
+      "kind": "response",
+      "status": 200,
+      "schema": "PaymentReviewList",
+      "body": {
+        "items": [
+          {
+            "id": "prv_1",
+            "kind": "deposit",
+            "reason": "UNDERPAID",
+            "status": "open",
+            "accountId": "acc_1",
+            "depositId": "dep_1",
+            "chainEventId": "cev_1",
+            "details": {
+              "expected": "5000000",
+              "received": "4999999"
+            },
+            "createdAt": "2026-10-18T12:00:00Z",
+            "resolvedAt": null,
+            "resolution": null
+          }
+        ],
+        "nextCursor": null
+      }
+    },
+    {
+      "name": "payment alerts",
+      "operation": "listPaymentAlerts",
+      "kind": "response",
+      "status": 200,
+      "schema": "PaymentAlertList",
+      "body": {
+        "items": [
+          {
+            "id": "palert_1",
+            "kind": "LEDGER_MISMATCH",
+            "severity": "critical",
+            "accountId": "acc_1",
+            "depositId": "dep_1",
+            "details": {
+              "credited": "5000000",
+              "posted": "4999999"
+            },
+            "createdAt": "2026-10-18T12:00:00Z",
+            "resolvedAt": null
+          }
+        ],
+        "nextCursor": null
+      }
+    },
+    {
+      "name": "resolve alert request",
+      "operation": "resolvePaymentAlert",
+      "kind": "request",
+      "schema": "ResolveAlertRequest",
+      "body": {
+        "note": "checked against the ledger"
+      }
+    },
+    {
+      "name": "resolved alert",
+      "operation": "resolvePaymentAlert",
+      "kind": "response",
+      "status": 200,
+      "schema": "PaymentAlert",
+      "body": {
+        "id": "palert_1",
+        "kind": "LEDGER_MISMATCH",
+        "severity": "critical",
+        "accountId": "acc_1",
+        "depositId": "dep_1",
+        "details": {
+          "credited": "5000000",
+          "posted": "4999999"
+        },
+        "createdAt": "2026-10-18T12:00:00Z",
+        "resolvedAt": "2026-10-18T12:00:00Z"
+      }
+    },
+    {
+      "name": "stuck reservations",
+      "operation": "listStuckReservations",
+      "kind": "response",
+      "status": 200,
+      "schema": "StuckReservationList",
+      "body": {
+        "items": [
+          {
+            "reservationId": "rsv_1",
+            "requestId": "req_1",
+            "accountId": "acc_1",
+            "amountMicrousd": "1000",
+            "requestState": "DISPATCHED",
+            "reason": "dispatched_stale",
+            "ageSeconds": 7200,
+            "createdAt": "2026-10-18T12:00:00Z"
+          }
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "name": "ledger mismatches",
+      "operation": "listLedgerMismatches",
+      "kind": "response",
+      "status": 200,
+      "schema": "LedgerMismatchList",
+      "body": {
+        "items": [
+          {
+            "kind": "deposit_credit_mismatch",
+            "accountId": "acc_1",
+            "refId": "dep_1",
+            "expectedMicrousd": "5000000",
+            "actualMicrousd": "4999999",
+            "detail": "deposit credit differs from its ledger postings"
+          },
+          {
+            "kind": "ledger_not_zero",
+            "accountId": null,
+            "refId": "ledger",
+            "expectedMicrousd": "0",
+            "actualMicrousd": "-5",
+            "detail": "sum of all ledger entries is not zero"
+          }
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "name": "credit adjustment request resolving a review",
+      "operation": "proposeAdjustment",
+      "kind": "request",
+      "schema": "ProposeAdjustmentRequest",
+      "body": {
+        "accountId": "acc_1",
+        "action": "credit",
+        "amountMicrousd": "4999999",
+        "reason": "Underpaid by 1 unit; crediting the amount received",
+        "reviewId": "prv_1"
+      }
+    },
+    {
+      "name": "reject review adjustment request",
+      "operation": "proposeAdjustment",
+      "kind": "request",
+      "schema": "ProposeAdjustmentRequest",
+      "body": {
+        "action": "reject_review",
+        "reason": "No customer could be identified for this transfer",
+        "reviewId": "prv_2"
+      }
+    },
+    {
+      "name": "pending adjustment",
+      "operation": "proposeAdjustment",
+      "kind": "response",
+      "status": 201,
+      "schema": "Adjustment",
+      "body": {
+        "id": "adj_1",
+        "accountId": "acc_1",
+        "action": "credit",
+        "amountMicrousd": "4999999",
+        "reason": "Underpaid by 1 unit; crediting the amount received",
+        "reviewId": "prv_1",
+        "proposedBy": "usr_op1",
+        "status": "pending",
+        "decidedBy": null,
+        "decisionReason": null,
+        "ledgerTransactionId": null,
+        "createdAt": "2026-10-18T12:00:00Z",
+        "expiresAt": "2026-10-21T12:00:00Z",
+        "decidedAt": null
+      }
+    },
+    {
+      "name": "adjustment list",
+      "operation": "listAdjustments",
+      "kind": "response",
+      "status": 200,
+      "schema": "AdjustmentList",
+      "body": {
+        "items": [
+          {
+            "id": "adj_1",
+            "accountId": "acc_1",
+            "action": "credit",
+            "amountMicrousd": "4999999",
+            "reason": "Underpaid by 1 unit; crediting the amount received",
+            "reviewId": "prv_1",
+            "proposedBy": "usr_op1",
+            "status": "pending",
+            "decidedBy": null,
+            "decisionReason": null,
+            "ledgerTransactionId": null,
+            "createdAt": "2026-10-18T12:00:00Z",
+            "expiresAt": "2026-10-21T12:00:00Z",
+            "decidedAt": null
+          },
+          {
+            "id": "adj_1",
+            "accountId": "acc_1",
+            "action": "credit",
+            "amountMicrousd": "4999999",
+            "reason": "Underpaid by 1 unit; crediting the amount received",
+            "reviewId": "prv_1",
+            "proposedBy": "usr_op1",
+            "status": "approved",
+            "decidedBy": "usr_op2",
+            "decisionReason": "verified against the chain explorer",
+            "ledgerTransactionId": "ltx_1",
+            "createdAt": "2026-10-18T12:00:00Z",
+            "expiresAt": "2026-10-21T12:00:00Z",
+            "decidedAt": "2026-10-18T12:00:00Z"
+          },
+          {
+            "id": "adj_2",
+            "accountId": "acc_1",
+            "action": "credit",
+            "amountMicrousd": "4999999",
+            "reason": "Underpaid by 1 unit; crediting the amount received",
+            "reviewId": "prv_1",
+            "proposedBy": "usr_op1",
+            "status": "rejected",
+            "decidedBy": "usr_op2",
+            "decisionReason": "no evidence",
+            "ledgerTransactionId": null,
+            "createdAt": "2026-10-18T12:00:00Z",
+            "expiresAt": "2026-10-21T12:00:00Z",
+            "decidedAt": "2026-10-18T12:00:00Z"
+          }
+        ],
+        "nextCursor": null
+      }
+    },
+    {
+      "name": "approve request",
+      "operation": "approveAdjustment",
+      "kind": "request",
+      "schema": "DecideAdjustmentRequest",
+      "body": {
+        "reason": "verified against the chain explorer"
+      }
+    },
+    {
+      "name": "approved adjustment",
+      "operation": "approveAdjustment",
+      "kind": "response",
+      "status": 200,
+      "schema": "Adjustment",
+      "body": {
+        "id": "adj_1",
+        "accountId": "acc_1",
+        "action": "credit",
+        "amountMicrousd": "4999999",
+        "reason": "Underpaid by 1 unit; crediting the amount received",
+        "reviewId": "prv_1",
+        "proposedBy": "usr_op1",
+        "status": "approved",
+        "decidedBy": "usr_op2",
+        "decisionReason": "verified against the chain explorer",
+        "ledgerTransactionId": "ltx_1",
+        "createdAt": "2026-10-18T12:00:00Z",
+        "expiresAt": "2026-10-21T12:00:00Z",
+        "decidedAt": "2026-10-18T12:00:00Z"
+      }
+    },
+    {
+      "name": "reject request",
+      "operation": "rejectAdjustment",
+      "kind": "request",
+      "schema": "DecideAdjustmentRequest",
+      "body": {
+        "reason": "no evidence"
+      }
+    },
+    {
+      "name": "rejected adjustment",
+      "operation": "rejectAdjustment",
+      "kind": "response",
+      "status": 200,
+      "schema": "Adjustment",
+      "body": {
+        "id": "adj_2",
+        "accountId": "acc_1",
+        "action": "credit",
+        "amountMicrousd": "4999999",
+        "reason": "Underpaid by 1 unit; crediting the amount received",
+        "reviewId": "prv_1",
+        "proposedBy": "usr_op1",
+        "status": "rejected",
+        "decidedBy": "usr_op2",
+        "decisionReason": "no evidence",
+        "ledgerTransactionId": null,
+        "createdAt": "2026-10-18T12:00:00Z",
+        "expiresAt": "2026-10-21T12:00:00Z",
+        "decidedAt": "2026-10-18T12:00:00Z"
+      }
+    },
+    {
+      "name": "Request detail with frozen rates",
+      "operation": "getUsageDetail",
+      "kind": "response",
+      "status": 200,
+      "schema": "UsageDetail",
+      "body": {
+        "id": "use_1",
+        "requestId": "req_1",
+        "correlationId": null,
+        "runId": "run_1",
+        "parentId": null,
+        "createdAt": "2026-10-18T12:00:00Z",
+        "model": "example-model",
+        "projectId": "prj_1",
+        "keyId": "key_1",
+        "status": "SETTLED",
+        "inputTokens": "1000",
+        "cachedInputTokens": "0",
+        "outputTokens": "500",
+        "chargeMicrousd": "10500",
+        "priceVersion": "pv_1",
+        "protocol": "openai_chat",
+        "stream": false,
+        "outcome": "succeeded",
+        "failureCode": null,
+        "dispatchedAt": "2026-10-18T12:00:00Z",
+        "finishedAt": "2026-10-18T12:00:00Z",
+        "latencyMs": 0,
+        "finishReason": "stop",
+        "rateSnapshot": {
+          "inputMicrousdPerMtok": "250000",
+          "cachedInputMicrousdPerMtok": "25000",
+          "outputMicrousdPerMtok": "1250000"
+        },
+        "computedChargeMicrousd": "10500",
+        "absorbedMicrousd": "0",
+        "ledgerTransactionId": null,
+        "ledgerEntries": []
+      }
+    }
+  ]
+}

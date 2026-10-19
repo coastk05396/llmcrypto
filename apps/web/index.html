@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#202225" />
+    <meta name="description" content="LLM Gateway: compare models and prices, follow setup guides, and check your own usage export locally. Pre-release." />
+    <title>LLM Gateway</title>
+    <script>
+      (function () {
+        var p = "system", d = document.documentElement;
+        try { p = localStorage.getItem("theme-preference") || p; } catch (e) {}
+        if (p !== "light" && p !== "dark") p = "system";
+        d.setAttribute("data-theme", p === "dark" || (p === "system" && matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light");
+        d.setAttribute("data-theme-pref", p);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
