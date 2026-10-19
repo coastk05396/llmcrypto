@@ -191,7 +191,7 @@ const FAQ: { q: string; a: string }[] = [
 function Faq() {
   return (
     <section id="faq" tabIndex={-1} className="section section--ruled" aria-labelledby="faq-h">
-      <div className="container container--narrow">
+      <div className="container">
         <h2 id="faq-h" className="section-title">Questions</h2>
         <div className="faq">
           {FAQ.map((f) => (
