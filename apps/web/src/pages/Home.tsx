@@ -153,9 +153,9 @@ function Quickstart() {
         <h2 id="quickstart-h" className="section-title">Quickstart</h2>
         <div className="split">
           <ol className="steps">
-            <li><strong>Create an API key</strong> in the console after you sign in.</li>
-            <li><strong>Pick a model ID</strong> from the catalog above and copy it.</li>
-            <li><strong>Replace both placeholders</strong>, <code>YOUR_API_KEY</code> and <code>YOUR_MODEL_ID</code>, then send a request to <code>{origin}/v1</code>.</li>
+            <li><div><strong>Create an API key</strong> in the console after you sign in.</div></li>
+            <li><div><strong>Pick a model ID</strong> from the catalog above and copy it.</div></li>
+            <li><div><strong>Replace both placeholders</strong>, <code>YOUR_API_KEY</code> and <code>YOUR_MODEL_ID</code>, then send a request to <code>{origin}/v1</code>.</div></li>
           </ol>
           <div>
             <p><Badge tone="neutral">{GUIDE_STATUS_LABEL["docs-only"]}</Badge> <span className="muted small">None of these samples has been run against the gateway yet.</span></p>
@@ -244,9 +244,9 @@ export function Home() {
         <div className="container">
           <h2 id="billing-h" className="section-title">Billing</h2>
           <ol className="steps steps--wide">
-            <li><strong>Deposit.</strong> You will create a deposit intent for a supported asset and network.</li>
-            <li><strong>Credit appears after confirmations.</strong> Only finalized, matched on-chain transfers are credited, once each.</li>
-            <li><strong>Usage draws from available balance.</strong> A hold covers each in-flight request and is released or settled when it ends.</li>
+            <li><div><strong>Deposit.</strong> You will create a deposit intent for a supported asset and network.</div></li>
+            <li><div><strong>Credit appears after confirmations.</strong> Only finalized, matched on-chain transfers are credited, once each.</div></li>
+            <li><div><strong>Usage draws from available balance.</strong> A hold covers each in-flight request and is released or settled when it ends.</div></li>
           </ol>
           <p>Supported networks are announced when payments open. Nothing can be deposited in this build.</p>
         </div>

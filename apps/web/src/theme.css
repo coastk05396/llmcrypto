@@ -238,7 +238,7 @@ input[type="file"]::file-selector-button { font: inherit; margin-right: 0.75rem;
 .code pre { margin: 0; padding: 1rem; overflow-x: auto; line-height: 1.5; }
 .code pre:focus-visible { outline-offset: -2px; }
 .tabs__list { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--border-strong); overflow-x: auto; }
-.tabs__list button { min-height: 2.75rem; padding: 0 1rem; font: inherit; font-weight: 500; color: var(--muted); background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; white-space: nowrap; }
+.tabs__list button { min-height: 2.75rem; padding: 0 1rem; font: inherit; font-weight: 500; color: var(--muted); background: none; border: 0; border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; }
 .tabs__list button[aria-selected="true"] { color: var(--text); font-weight: 700; border-bottom-color: var(--accent); }
 .copy-btn[data-state="copied"] { border-color: var(--success); }
 .copy-btn[data-state="failed"] { border-color: var(--warning); }
@@ -290,7 +290,7 @@ input[type="file"]::file-selector-button { font: inherit; margin-right: 0.75rem;
   .page { padding-bottom: 0; }
   html { scroll-padding-bottom: 1rem; }
   .toolbar { grid-template-columns: 2fr 1fr 1fr; }
-  .site-footer__grid { grid-template-columns: 2fr 1fr 1fr; }
+  .site-footer__grid { grid-template-columns: 2fr 1fr minmax(max-content, 1fr); }
 }
 @media (min-width: 64rem) {
   .site-nav { display: block; }

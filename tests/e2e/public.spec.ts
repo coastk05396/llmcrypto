@@ -212,6 +212,40 @@ test.describe("quickstart", () => {
   });
 });
 
+for (const width of [320, 390, 768, 1024, 1440, 1920]) {
+  for (const theme of ["light", "dark"] as const) {
+    test(`numbered instructions keep text beside the number at ${width}px / ${theme}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 1000 });
+      await seedTheme(page, theme);
+      await apiUnreachable(page);
+      await page.goto("/#quickstart");
+      const steps = page.locator("#quickstart .steps li, #billing .steps li");
+      await expect(steps).toHaveCount(6);
+      for (const step of await steps.all()) {
+        const misplaced = await step.evaluate((item) => {
+          const left = item.querySelector("strong")!.getBoundingClientRect().left;
+          const walker = document.createTreeWalker(item, NodeFilter.SHOW_TEXT);
+          const failures: string[] = [];
+          let node = walker.nextNode();
+          while (node) {
+            if (node.textContent?.trim()) {
+              const range = document.createRange();
+              range.selectNodeContents(node);
+              if (Array.from(range.getClientRects()).some((rect) => rect.left < left - 1)) failures.push(node.textContent);
+            }
+            node = walker.nextNode();
+          }
+          return failures;
+        });
+        expect(misplaced, "instruction text must not fall into the number column").toEqual([]);
+      }
+      const tabSize = await page.locator("#quickstart .tabs__list").evaluate((list) => ({ height: list.clientHeight, content: list.scrollHeight }));
+      expect(tabSize.content, "tabs must not have a one-pixel vertical scrollbar").toBeLessThanOrEqual(tabSize.height);
+      await expectNoOverflow(page);
+    });
+  }
+}
+
 test.describe("navigation at 390 px", () => {
   test.use({ viewport: { width: 390, height: 844 } });
   test.beforeEach(async ({ page }) => {
