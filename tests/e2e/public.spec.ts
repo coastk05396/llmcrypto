@@ -67,7 +67,7 @@ test.describe("theme behaviour", () => {
     await page.emulateMedia({ colorScheme: "dark" });
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
-    await footerTheme.getByText("Light", { exact: true }).click();
+    await footerTheme.getByRole("radio", { name: "Light" }).locator("..").click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await page.emulateMedia({ colorScheme: "dark" }); // OS changes, explicit choice must hold
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
@@ -77,7 +77,7 @@ test.describe("theme behaviour", () => {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect(page.locator("footer").getByRole("radio", { name: "Light" })).toBeChecked();
 
-    await page.locator("footer").getByText("System", { exact: true }).click();
+    await page.locator("footer").getByRole("radio", { name: "System" }).locator("..").click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     expect(await page.evaluate(() => localStorage.getItem("theme-preference"))).toBe("system");
   });
@@ -88,7 +88,7 @@ test.describe("theme behaviour", () => {
       Object.defineProperty(window, "localStorage", { get() { throw new Error("blocked"); } });
     });
     await page.goto("/");
-    await page.locator("footer").getByText("Dark", { exact: true }).click();
+    await page.locator("footer").getByRole("radio", { name: "Dark" }).locator("..").click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   });
 
