@@ -259,7 +259,7 @@ export function Home() {
             </div>
           </div>
         </div>
-        <div className="container"><div className="home-principles"><span>ONE API ACROSS MODELS</span><span>A KEY FOR EVERY PROJECT</span><span>COST BY REQUEST</span></div></div>
+        <div className="container"><div id="principles" tabIndex={-1} className="home-principles"><span>ONE API ACROSS MODELS</span><span>A KEY FOR EVERY PROJECT</span><span>COST BY REQUEST</span></div></div>
       </section>
 
       <section id="overview" tabIndex={-1} className="section" aria-labelledby="overview-h">
@@ -302,7 +302,7 @@ export function Home() {
         </div>
       </section>
 
-      <section className="section home-developer" aria-labelledby="developer-h">
+      <section id="developer" tabIndex={-1} className="section home-developer" aria-labelledby="developer-h">
         <div className="container home-two-col">
           <div><p className="home-kicker">05 / BUILT FOR THE WAY YOU WORK</p><h2 id="developer-h" className="section-title">Keep your stack.<br />Open new doors.</h2><p className="home-intro">Start where you are—an SDK, an agent, or a simple HTTP call. Make model access feel like part of your workflow, not another platform to learn.</p><div className="actions"><a href="#quickstart" className="btn btn--primary">Start building ↗</a><Link to="/docs" className="home-text-link">Explore the approach →</Link></div><p className="home-developer-note">LESS FRICTION / MORE SIGNAL / YOUR DIRECTION</p></div>
           <div className="home-panel"><div className="home-panel-bar"><span>quickstart / example.ts</span><span>TYPESCRIPT</span></div><div className="home-panel-body"><p className="home-kicker">ONE INTERFACE. YOUR CHOICE OF MODEL.</p><CodeBlock code={'const response = await fetch("/v1/chat/completions", {\n  method: "POST",\n  headers: {\n    Authorization: "Bearer YOUR_API_KEY",\n    "Content-Type": "application/json",\n  },\n  body: JSON.stringify({\n    model: "YOUR_MODEL_ID",\n    messages: [{ role: "user", content: "Hello" }],\n  }),\n});'} label="TypeScript request example" what="TypeScript request example" /><p className="home-code-caption">ILLUSTRATIVE CONFIGURATION · NOT A LIVE ENDPOINT</p></div></div>

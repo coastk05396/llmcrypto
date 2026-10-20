@@ -25,8 +25,8 @@ const SECTION_LINKS: NavItem[] = [
 const HOME_LINKS: NavItem[] = [
   { label: "Overview", to: "/", hash: "#main" },
   { label: "Platform", to: "/", hash: "#overview" },
-  { label: "For developers", to: "/", hash: "#developer-h" },
-  { label: "Principles", to: "/", hash: "#billing" },
+  { label: "For developers", to: "/", hash: "#developer" },
+  { label: "Principles", to: "/", hash: "#principles" },
 ];
 const PAGE_LINKS: NavItem[] = [
   { label: "Setup", to: "/setup" },

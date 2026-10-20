@@ -96,12 +96,12 @@ test.describe("theme behaviour", () => {
     await apiUnreachable(page);
     await page.emulateMedia({ colorScheme: "dark" });
     await page.goto("/");
-    const header = page.locator("header").getByRole("radiogroup", { name: "Theme" });
-    await header.getByRole("radio", { name: "System" }).focus();
+    const footer = page.locator("footer").getByRole("radiogroup", { name: "Theme" });
+    await footer.getByRole("radio", { name: "System" }).focus();
     await page.keyboard.press("ArrowLeft");
-    await expect(header.getByRole("radio", { name: "Dark" })).toBeChecked();
+    await expect(footer.getByRole("radio", { name: "Dark" })).toBeChecked();
     await page.keyboard.press("ArrowLeft");
-    await expect(header.getByRole("radio", { name: "Light" })).toBeChecked();
+    await expect(footer.getByRole("radio", { name: "Light" })).toBeChecked();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   });
 });
@@ -301,7 +301,7 @@ test.describe("navigation at 390 px", () => {
     const bottom = page.getByRole("navigation", { name: "Quick navigation" });
     await expect(bottom).toBeVisible();
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-    const lastLink = page.locator("footer").getByRole("link", { name: "Sign in" });
+    const lastLink = page.locator("footer").getByRole("link", { name: "Principles" });
     await lastLink.scrollIntoViewIfNeeded();
     const navTop = (await bottom.boundingBox())!.y;
     const footerBottom = await page.locator("footer").evaluate((el) => el.getBoundingClientRect().bottom);
@@ -369,8 +369,8 @@ test.describe("skip link, FAQ, reduced motion", () => {
       return parseFloat(getComputedStyle(s!, "::after").transitionDuration);
     });
     expect(d).toBeLessThan(0.01);
-    await page.getByRole("link", { name: "Explore the models" }).click();
-    await expect(page.locator("#catalog")).toBeFocused();
+    await page.getByRole("link", { name: "Explore the platform" }).click();
+    await expect(page.locator("#overview")).toBeFocused();
   });
 
   test("normal motion keeps the 200 ms disclosure transition", async ({ page }) => {
