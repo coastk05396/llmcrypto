@@ -224,7 +224,7 @@ export function PublicChrome({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <>
+    <div className={pathname === "/" ? "home-chrome" : undefined}>
       <a className="skip-link" href="#main" onClick={(e) => { e.preventDefault(); document.getElementById("main")?.focus(); }}>Skip to content</a>
       <Header menuOpen={menuOpen} setMenuOpen={(v) => (v ? setMenuOpen(true) : close())} menuButton={menuButton} />
       {menuOpen && <MobileMenu onClose={close} menuButton={menuButton} />}
@@ -236,6 +236,6 @@ export function PublicChrome({ children }: { children: ReactNode }) {
       </div>
       <div inert={menuOpen}><BottomNav /></div>
       <RouteEffects />
-    </>
+    </div>
   );
 }

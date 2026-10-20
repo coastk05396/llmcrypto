@@ -369,7 +369,7 @@ test.describe("skip link, FAQ, reduced motion", () => {
       return parseFloat(getComputedStyle(s!, "::after").transitionDuration);
     });
     expect(d).toBeLessThan(0.01);
-    await page.getByRole("link", { name: "Browse models" }).click();
+    await page.getByRole("link", { name: "Explore the models" }).click();
     await expect(page.locator("#catalog")).toBeFocused();
   });
 

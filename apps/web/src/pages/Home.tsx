@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
+import "./home.css";
 import type { CatalogModel } from "@llmcrypto/contracts";
 import { formatUsd, tokenCharge } from "@llmcrypto/domain";
 import { Badge } from "../components/StatusBadge";
@@ -81,6 +82,7 @@ function Catalog() {
   return (
     <section id="catalog" tabIndex={-1} className="section" aria-labelledby="catalog-h">
       <div className="container">
+        <p className="home-kicker">05 / EXPLORE THE MODELS</p>
         <h2 id="catalog-h" className="section-title">Model catalog</h2>
 
         {state.status === "ready" && state.source === "sample" && (
@@ -150,7 +152,8 @@ function Quickstart() {
   return (
     <section id="quickstart" tabIndex={-1} className="section section--ruled" aria-labelledby="quickstart-h">
       <div className="container">
-        <h2 id="quickstart-h" className="section-title">Quickstart</h2>
+        <p className="home-kicker">06 / BUILT FOR THE WAY YOU WORK</p>
+        <h2 id="quickstart-h" className="section-title">Keep your stack.<br />Open new doors.</h2>
         <div className="split">
           <ol className="steps">
             <li><div><strong>Create an API key</strong> in the console after you sign in.</div></li>
@@ -192,6 +195,7 @@ function Faq() {
   return (
     <section id="faq" tabIndex={-1} className="section section--ruled" aria-labelledby="faq-h">
       <div className="container">
+        <p className="home-kicker">08 / THE DETAILS</p>
         <h2 id="faq-h" className="section-title">Questions</h2>
         <div className="faq">
           {FAQ.map((f) => (
@@ -206,34 +210,85 @@ function Faq() {
   );
 }
 
+function RequestPath() {
+  return (
+    <ol className="home-path" aria-label="Planned request path">
+      <li><span>01</span><strong>Your workspace</strong><p>The editor, agent or app you know.</p></li>
+      <li><span>02</span><strong>LLM Gateway</strong><p>Apply the key and record the cost.</p></li>
+      <li><span>03</span><strong>Model choice</strong><p>Choose the model for the task.</p></li>
+    </ol>
+  );
+}
+
 export function Home() {
   return (
-    <>
-      <section className="hero">
-        <div className="container hero__grid">
-          <div>
-            <p className="eyebrow">Prepaid LLM gateway - pre-release</p>
-            <h1>One account, one key, many models, paid in advance</h1>
-            <p className="lead">Compare model prices, follow setup guides, and check your own usage export without leaving your browser. Accounts and the API itself are still being built.</p>
+    <div className="home-landing">
+      <section className="home-hero">
+        <div className="container home-two-col">
+          <div className="home-hero-copy">
+            <p className="home-kicker">01 / A BETTER CONTROL PLANE FOR AI</p>
+            <h1>Build with AI.<br />Keep the reins.</h1>
+            <p className="home-intro">A thoughtful home for model access, project keys and the details behind every request. Explore the catalog and plan your next integration.</p>
             <div className="actions">
-              <Link to="/app" className="btn btn--primary">Sign in</Link>
-              <a href="#catalog" className="btn btn--secondary" onClick={(e) => { e.preventDefault(); document.getElementById("catalog")?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); document.getElementById("catalog")?.focus({ preventScroll: true }); }}>Browse models</a>
+              <a href="#catalog" className="btn btn--primary">Explore the models ↗</a>
+              <a href="#overview" className="home-text-link">See how it works →</a>
+            </div>
+            <p className="home-release">Pre-release · Accounts, funding and live API access are under development.</p>
+          </div>
+          <div className="home-panel home-workspace">
+            <div className="home-panel-bar"><span>workspace / overview</span><span>DESIGN PREVIEW</span></div>
+            <div className="home-panel-body">
+              <p className="home-kicker">PROJECT / YOUR NEXT IDEA</p>
+              <h2>A clear view of every request.</h2>
+              <div className="home-mini-flow">
+                <p className="home-panel-label">PLANNED REQUEST PATH</p>
+                <div><span><strong>APP</strong><small>your tool</small></span><b aria-hidden="true">→</b><span><strong>GATEWAY</strong><small>key + policy</small></span><b aria-hidden="true">→</b><span><strong>MODEL</strong><small>your choice</small></span></div>
+              </div>
+              <p className="home-panel-label">What the design brings together</p>
+              <div className="home-signals"><div><span>01</span><strong>ACCESS</strong><small>Keys per project</small></div><div><span>02</span><strong>CHOICE</strong><small>Models in one place</small></div><div><span>03</span><strong>SPEND</strong><small>Usage made legible</small></div></div>
             </div>
           </div>
-          <Specimen />
+        </div>
+        <div className="container"><div className="home-principles"><span>DESIGNED FOR REAL WORKFLOWS</span><span>CLARITY OVER COMPLEXITY</span><span>CONTROL WITHOUT FRICTION</span></div></div>
+      </section>
+
+      <section id="overview" tabIndex={-1} className="section" aria-labelledby="overview-h">
+        <div className="container home-two-col">
+          <div>
+            <p className="home-kicker">02 / THE PLATFORM</p>
+            <h2 id="overview-h" className="section-title">Freedom to explore.<br />Guardrails that make sense.</h2>
+            <p className="home-intro">Keep the essentials close: who can access a model, what ran, and where the budget went.</p>
+            <ul className="home-feature-list">
+              <li><span>01</span><div><h3>Give every project its own key</h3><p>Planned scopes, spend caps and model allow-lists.</p></div></li>
+              <li><span>02</span><div><h3>Understand the bill as it happens</h3><p>Versioned prices and exact micro-USD accounting.</p></div></li>
+              <li><span>03</span><div><h3>Keep your diagnostics local</h3><p>Compare a usage export right in your browser.</p></div></li>
+            </ul>
+          </div>
+          <div className="home-panel">
+            <div className="home-panel-bar"><span>policies / project-preview</span><span>PLANNED</span></div>
+            <div className="home-panel-body">
+              <h3 className="home-panel-heading">Know the boundaries.<br />Move faster within them.</h3>
+              <dl className="home-policy"><div><dt>PROJECT KEY</dt><dd>Named and scoped <span>DESIGN GOAL</span></dd></div><div><dt>SPEND LIMIT</dt><dd>Set per key <span>PLANNED</span></dd></div><div><dt>MODEL ACCESS</dt><dd>Selected by your team <span>PLANNED</span></dd></div></dl>
+              <p className="home-note">↗ Under development. This panel illustrates the intended controls.</p>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section id="overview" tabIndex={-1} className="section section--ruled" aria-labelledby="overview-h">
+      <section className="section" aria-labelledby="path-h">
         <div className="container">
-          <h2 id="overview-h" className="section-title">What the gateway is built to do</h2>
-          <p className="muted"><Badge tone="warning">Under development</Badge> These are design goals from the product specification, not claims about a running service.</p>
-          <ul className="benefits">
-            <li><h3>Prepaid, with holds</h3><p>Requests reserve a maximum cost first, so concurrent requests cannot spend the same funds. Held and available balance stay separate.</p></li>
-            <li><h3>Scoped keys</h3><p>Keys carry a name, scope, optional spend cap and model allow-list. A secret is shown once and can be revoked.</p></li>
-            <li><h3>Exact accounting</h3><p>Money is whole micro-USD integers. Each charge records the price version it used, so a later price change does not rewrite past charges.</p></li>
-            <li><h3>Local diagnostics</h3><p>Compare an export of your own usage against a dated price snapshot. The file never leaves your device.</p></li>
-          </ul>
+          <p className="home-kicker">03 / FROM IDEA TO INFRASTRUCTURE</p>
+          <h2 id="path-h" className="section-title">One path through the noise.</h2>
+          <p className="home-intro">The planned gateway handles access and records the journey. You decide which model answers.</p>
+          <div className="home-panel home-path-panel"><p className="home-panel-label">REQUEST PATH / CONCEPTUAL</p><RequestPath /></div>
+          <p className="home-caption">No new mental model. A place to manage the one you already have.</p>
+        </div>
+      </section>
+
+      <section className="section" aria-labelledby="details-h">
+        <div className="container home-two-col">
+          <div><p className="home-kicker">04 / SEE THE WHOLE STORY</p><h2 id="details-h" className="section-title">The useful details,<br />in plain sight.</h2><p className="home-intro">A readable request trail is part of the design: understand which model ran, which key called it and what it cost.</p><Link className="home-text-link home-detail-link" to="/diag">Compare your own usage locally →</Link></div>
+          <div className="home-panel"><div className="home-panel-bar"><span>usage / cost breakdown</span><span>ILLUSTRATIVE</span></div><Specimen /></div>
         </div>
       </section>
 
@@ -242,7 +297,8 @@ export function Home() {
 
       <section id="billing" tabIndex={-1} className="section section--ruled" aria-labelledby="billing-h">
         <div className="container">
-          <h2 id="billing-h" className="section-title">Billing</h2>
+          <p className="home-kicker">07 / A CLEARER BALANCE</p>
+          <h2 id="billing-h" className="section-title">Pay ahead. Know where you stand.</h2>
           <ol className="steps steps--wide">
             <li><div><strong>Deposit.</strong> You will create a deposit intent for a supported asset and network.</div></li>
             <li><div><strong>Credit appears after confirmations.</strong> Only finalized, matched on-chain transfers are credited, once each.</div></li>
@@ -251,8 +307,7 @@ export function Home() {
           <p>Supported networks are announced when payments open. Nothing can be deposited in this build.</p>
         </div>
       </section>
-
       <Faq />
-    </>
+    </div>
   );
 }

@@ -293,6 +293,7 @@ input[type="file"]::file-selector-button { font: inherit; margin-right: 0.75rem;
   .site-footer__grid { grid-template-columns: 2fr 1fr minmax(max-content, 1fr); }
 }
 @media (min-width: 64rem) {
+  .footer-links { display: flex; flex-wrap: wrap; column-gap: 1.25rem; }
   .site-nav { display: block; }
   .menu-btn { display: none; }
   .hero__grid { grid-template-columns: 7fr 5fr; gap: 3rem; }
