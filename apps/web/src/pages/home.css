@@ -100,3 +100,55 @@
   .home-landing .specimen thead th { font-size: 0.5625rem; }
   .home-landing .specimen .badge { font-size: 0.6875rem; }
 }
+/* Selected reference: a warm workflow interlude within the dark product story. */
+.home-hero > .home-two-col { align-items: start; }
+.home-hero .home-panel-body { padding-bottom: 2.5rem; }
+.home-hero .home-release { margin-top: 1rem; font-size: 0.625rem; }
+.home-principles { margin-top: 2.5rem; }
+.home-principles span { color: var(--accent); }
+.home-landing .home-workflow { background: #e9dfc7; color: #282b30; padding-block: 1.75rem 1rem; margin-top: 1rem; }
+.home-landing .home-workflow > .container { border-top: 0; padding-top: 0; }
+.home-workflow .home-kicker { color: #795721; }
+.home-workflow .home-intro { color: #54575c; max-width: none; }
+.home-workflow .home-path-panel { background: #f6f0e2; border-color: #cfc4ad; background-image: radial-gradient(#aa9c7d 0.6px, transparent 0.6px); background-size: 4rem 4rem; }
+.home-workflow .home-path-panel > .home-panel-label { color: #795721; font-weight: 600; background: #f6f0e2; width: fit-content; padding-right: 1rem; }
+.home-workflow .home-path li { background: #fff; border-color: #d3cbbd; }
+.home-workflow .home-path li:nth-child(2) { background: #25282d; color: #f0f2f5; border-color: #b78c36; }
+.home-workflow .home-path li p { color: #54575c; }
+.home-workflow .home-path li:nth-child(2) p { color: #b5bfce; }
+.home-workflow .home-path li > span, .home-workflow .home-path li + li::before { color: #946822; }
+.home-workflow .home-path li:nth-child(2) > span { color: #dfbb76; }
+.home-workflow .home-caption { color: #54575c; border-bottom: 1px solid #8f8c81; padding-bottom: 2.5rem; }
+.home-landing .home-workflow + .section > .container { border-top: 0; padding-top: 0; }
+.home-quote { color: var(--accent); font-size: 1rem; font-weight: 600; margin-top: 3.5rem; }
+.home-trace table { font: 500 0.6875rem/1.6 var(--font-mono); width: 100%; border-collapse: collapse; margin-top: 1rem; white-space: nowrap; }
+.home-trace th { color: var(--muted); font-size: 0.5625rem; text-align: left; }
+.home-trace td, .home-trace th { border-bottom: 1px solid var(--home-rule); padding: 1rem 0.5rem 1rem 0; }
+.home-trace td:last-child { color: var(--accent); }
+.home-trace-scroll { overflow-x: auto; }
+.home-code-caption { color: var(--muted); font: 500 0.5625rem/1.6 var(--font-mono); margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--home-rule); }
+.home-developer .actions { margin-top: 2.75rem; align-items: center; gap: 1.5rem; }
+.home-developer-note { margin-top: 3rem; border-top: 1px solid var(--home-rule); padding-top: 1rem; color: var(--accent); font: 600 0.5625rem/1.6 var(--font-mono); }
+.home-developer .code-block { background: transparent; border: 0; }
+.home-developer .code-block pre { font-size: 0.6875rem; }
+.home-footer-line { display: flex; gap: 1.5rem; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.home-footer-brand { font: 700 0.75rem var(--font-mono); text-decoration: none; color: var(--accent); }
+.home-footer-line > p, .home-footer-disclosure > p { font: 400 0.5625rem/1.6 var(--font-mono); color: var(--muted); }
+.home-reference-footer .footer-links a { text-transform: uppercase; font-size: 0.5625rem; }
+.home-footer-disclosure { display: flex; justify-content: space-between; gap: 1rem; align-items: center; margin-top: 1rem; }
+@media (min-width: 48rem) {
+ .home-hero > .home-two-col { grid-template-columns: 1.05fr 1fr; gap: 5.5rem; }
+ .home-landing #overview .home-two-col { gap: 5.5rem; }
+ .home-workflow .home-path { margin-block: 2rem 1.5rem; }
+ .home-workflow .home-path li { padding: 1rem; min-height: 9rem; }
+ .home-workflow .home-path p { font-size: 0.75rem; }
+ .home-landing .home-developer { padding-bottom: 5rem; }
+}
+@media (min-width: 64rem) {
+ .home-chrome .site-header__inner { max-width: none; padding-inline: max(var(--gutter), calc((100vw - 76rem) / 2 + var(--gutter))); }
+ .home-chrome .site-nav { margin-left: auto; }
+ .home-chrome .site-header__tools { margin-left: 2rem; }
+}
+@media (max-width: 47.99rem) {
+ .home-chrome .page { padding-bottom: calc(var(--bottom-h) + env(safe-area-inset-bottom) + 2px); }
+}

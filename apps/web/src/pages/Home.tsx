@@ -210,12 +210,22 @@ function Faq() {
   );
 }
 
+function TracePreview() {
+  const rows = [
+    ["09:42", "northstar / prod", "Sonnet", "$0.024"],
+    ["09:41", "studio / sandbox", "Gemini Flash", "$0.003"],
+    ["09:39", "northstar / prod", "GPT", "$0.018"],
+    ["09:34", "docs / staging", "Haiku", "$0.001"],
+  ];
+  return <div className="home-panel home-trace"><div className="home-panel-bar"><span>usage / recent requests</span><span>EXAMPLE DATA</span></div><div className="home-panel-body"><h3 className="home-panel-heading">A trace you can actually read.</h3><div className="home-trace-scroll" role="region" aria-label="Example request history" tabIndex={0}><table><caption className="sr-only">Illustrative request history with invented costs</caption><thead><tr>{["TIME", "KEY / PROJECT", "MODEL", "COST"].map((label) => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row[0]}>{row.map((cell, i) => <td key={i}>{cell}</td>)}</tr>)}</tbody></table></div><p className="home-code-caption">ILLUSTRATIVE VIEW · VALUES SHOWN FOR DESIGN CONTEXT</p></div></div>;
+}
+
 function RequestPath() {
   return (
     <ol className="home-path" aria-label="Planned request path">
-      <li><span>01</span><strong>Your workspace</strong><p>The editor, agent or app you know.</p></li>
-      <li><span>02</span><strong>LLM Gateway</strong><p>Apply the key and record the cost.</p></li>
-      <li><span>03</span><strong>Model choice</strong><p>Choose the model for the task.</p></li>
+      <li><span>01</span><strong>Create a project key</strong><p>Give the support assistant its own access and budget.</p></li>
+      <li><span>02</span><strong>Send a request</strong><p>Use the key to reach the model you selected.</p></li>
+      <li><span>03</span><strong>Inspect the trace</strong><p>See the model, project and cost for each answer.</p></li>
     </ol>
   );
 }
@@ -228,9 +238,9 @@ export function Home() {
           <div className="home-hero-copy">
             <p className="home-kicker">01 / A BETTER CONTROL PLANE FOR AI</p>
             <h1>Build with AI.<br />Keep the reins.</h1>
-            <p className="home-intro">A thoughtful home for model access, project keys and the details behind every request. Explore the catalog and plan your next integration.</p>
+            <p className="home-intro">One gateway for model access, project keys, usage and cost. Give your team room to try different models while keeping every request—and its spend—accountable.</p>
             <div className="actions">
-              <a href="#catalog" className="btn btn--primary">Explore the models ↗</a>
+              <a href="#overview" className="btn btn--primary">Explore the platform ↗</a>
               <a href="#overview" className="home-text-link">See how it works →</a>
             </div>
             <p className="home-release">Pre-release · Accounts, funding and live API access are under development.</p>
@@ -238,18 +248,18 @@ export function Home() {
           <div className="home-panel home-workspace">
             <div className="home-panel-bar"><span>workspace / overview</span><span>DESIGN PREVIEW</span></div>
             <div className="home-panel-body">
-              <p className="home-kicker">PROJECT / YOUR NEXT IDEA</p>
+              <p className="home-kicker">PROJECT / NORTHSTAR</p>
               <h2>A clear view of every request.</h2>
               <div className="home-mini-flow">
                 <p className="home-panel-label">PLANNED REQUEST PATH</p>
-                <div><span><strong>APP</strong><small>your tool</small></span><b aria-hidden="true">→</b><span><strong>GATEWAY</strong><small>key + policy</small></span><b aria-hidden="true">→</b><span><strong>MODEL</strong><small>your choice</small></span></div>
+                <div><span><strong>APP</strong><small>your tool</small></span><b aria-hidden="true">→</b><span><strong>GATEWAY</strong><small>key + policy</small></span><b aria-hidden="true">→</b><span><strong>MODEL</strong><small>best fit</small></span></div>
               </div>
-              <p className="home-panel-label">What the design brings together</p>
+              <p className="home-panel-label">What you can see</p>
               <div className="home-signals"><div><span>01</span><strong>ACCESS</strong><small>Keys per project</small></div><div><span>02</span><strong>CHOICE</strong><small>Models in one place</small></div><div><span>03</span><strong>SPEND</strong><small>Usage made legible</small></div></div>
             </div>
           </div>
         </div>
-        <div className="container"><div className="home-principles"><span>DESIGNED FOR REAL WORKFLOWS</span><span>CLARITY OVER COMPLEXITY</span><span>CONTROL WITHOUT FRICTION</span></div></div>
+        <div className="container"><div className="home-principles"><span>ONE API ACROSS MODELS</span><span>A KEY FOR EVERY PROJECT</span><span>COST BY REQUEST</span></div></div>
       </section>
 
       <section id="overview" tabIndex={-1} className="section" aria-labelledby="overview-h">
@@ -257,41 +267,47 @@ export function Home() {
           <div>
             <p className="home-kicker">02 / THE PLATFORM</p>
             <h2 id="overview-h" className="section-title">Freedom to explore.<br />Guardrails that make sense.</h2>
-            <p className="home-intro">Keep the essentials close: who can access a model, what ran, and where the budget went.</p>
+            <p className="home-intro">Experiment across models while keeping the essentials close: who can access them, what ran, and where the budget went.</p>
             <ul className="home-feature-list">
-              <li><span>01</span><div><h3>Give every project its own key</h3><p>Planned scopes, spend caps and model allow-lists.</p></div></li>
-              <li><span>02</span><div><h3>Understand the bill as it happens</h3><p>Versioned prices and exact micro-USD accounting.</p></div></li>
-              <li><span>03</span><div><h3>Keep your diagnostics local</h3><p>Compare a usage export right in your browser.</p></div></li>
+              <li><span>01</span><div><h3>Give every project its own key</h3><p>Keep access intentional instead of sharing one secret everywhere.</p></div></li>
+              <li><span>02</span><div><h3>Find the right model for the moment</h3><p>Choose capability and cost to match the work in front of you.</p></div></li>
+              <li><span>03</span><div><h3>Understand the bill as it happens</h3><p>A request trail makes spending easier to investigate and explain.</p></div></li>
             </ul>
           </div>
           <div className="home-panel">
-            <div className="home-panel-bar"><span>policies / project-preview</span><span>PLANNED</span></div>
+            <div className="home-panel-bar"><span>policies / project-northstar</span><span>PLANNED</span></div>
             <div className="home-panel-body">
-              <h3 className="home-panel-heading">Know the boundaries.<br />Move faster within them.</h3>
-              <dl className="home-policy"><div><dt>PROJECT KEY</dt><dd>Named and scoped <span>DESIGN GOAL</span></dd></div><div><dt>SPEND LIMIT</dt><dd>Set per key <span>PLANNED</span></dd></div><div><dt>MODEL ACCESS</dt><dd>Selected by your team <span>PLANNED</span></dd></div></dl>
-              <p className="home-note">↗ Under development. This panel illustrates the intended controls.</p>
+              <h3 className="home-panel-heading">Know the boundaries. Move faster within them.</h3>
+              <dl className="home-policy"><div><dt>PROJECT KEY</dt><dd>northstar-production <span>EXAMPLE</span></dd></div><div><dt>MONTHLY LIMIT</dt><dd>$250.00 <span>PLANNED</span></dd></div><div><dt>MODEL ACCESS</dt><dd>Selected by your team <span>PLANNED</span></dd></div></dl>
+              <p className="home-note">↗ Change a key or limit without changing your workflow.</p>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="section" aria-labelledby="path-h">
+      <section className="section home-workflow" aria-labelledby="path-h">
         <div className="container">
-          <p className="home-kicker">03 / FROM IDEA TO INFRASTRUCTURE</p>
-          <h2 id="path-h" className="section-title">One path through the noise.</h2>
-          <p className="home-intro">The planned gateway handles access and records the journey. You decide which model answers.</p>
-          <div className="home-panel home-path-panel"><p className="home-panel-label">REQUEST PATH / CONCEPTUAL</p><RequestPath /></div>
-          <p className="home-caption">No new mental model. A place to manage the one you already have.</p>
+          <p className="home-kicker">03 / A REAL WORKFLOW</p>
+          <h2 id="path-h" className="section-title">From first key to clear answers.</h2>
+          <p className="home-intro">For example: launch a support assistant with its own key, route its requests to a model, then inspect the cost of every answer.</p>
+          <div className="home-panel home-path-panel"><p className="home-panel-label">SUPPORT ASSISTANT / EXAMPLE WORKFLOW</p><RequestPath /></div>
+          <p className="home-caption">One path from setup to insight—with the request trail ready when you need it.</p>
         </div>
       </section>
 
       <section className="section" aria-labelledby="details-h">
         <div className="container home-two-col">
-          <div><p className="home-kicker">04 / SEE THE WHOLE STORY</p><h2 id="details-h" className="section-title">The useful details,<br />in plain sight.</h2><p className="home-intro">A readable request trail is part of the design: understand which model ran, which key called it and what it cost.</p><Link className="home-text-link home-detail-link" to="/diag">Compare your own usage locally →</Link></div>
-          <div className="home-panel"><div className="home-panel-bar"><span>usage / cost breakdown</span><span>ILLUSTRATIVE</span></div><Specimen /></div>
+          <div><p className="home-kicker">04 / SEE THE WHOLE STORY</p><h2 id="details-h" className="section-title">The useful details,<br />not another dashboard.</h2><p className="home-intro">Turn opaque AI calls into a readable trail. Understand which model ran, which key called it and what it cost—without digging through logs.</p><p className="home-quote">“Good infrastructure makes the invisible visible.”</p></div>
+          <TracePreview />
         </div>
       </section>
 
+      <section className="section home-developer" aria-labelledby="developer-h">
+        <div className="container home-two-col">
+          <div><p className="home-kicker">05 / BUILT FOR THE WAY YOU WORK</p><h2 id="developer-h" className="section-title">Keep your stack.<br />Open new doors.</h2><p className="home-intro">Start where you are—an SDK, an agent, or a simple HTTP call. Make model access feel like part of your workflow, not another platform to learn.</p><div className="actions"><a href="#quickstart" className="btn btn--primary">Start building ↗</a><Link to="/docs" className="home-text-link">Explore the approach →</Link></div><p className="home-developer-note">LESS FRICTION / MORE SIGNAL / YOUR DIRECTION</p></div>
+          <div className="home-panel"><div className="home-panel-bar"><span>quickstart / example.ts</span><span>TYPESCRIPT</span></div><div className="home-panel-body"><p className="home-kicker">ONE INTERFACE. YOUR CHOICE OF MODEL.</p><CodeBlock code={'const response = await fetch("/v1/chat/completions", {\n  method: "POST",\n  headers: {\n    Authorization: "Bearer YOUR_API_KEY",\n    "Content-Type": "application/json",\n  },\n  body: JSON.stringify({\n    model: "YOUR_MODEL_ID",\n    messages: [{ role: "user", content: "Hello" }],\n  }),\n});'} label="TypeScript request example" what="TypeScript request example" /><p className="home-code-caption">ILLUSTRATIVE CONFIGURATION · NOT A LIVE ENDPOINT</p></div></div>
+        </div>
+      </section>
       <Catalog />
       <Quickstart />
 
@@ -305,6 +321,7 @@ export function Home() {
             <li><div><strong>Usage draws from available balance.</strong> A hold covers each in-flight request and is released or settled when it ends.</div></li>
           </ol>
           <p>Supported networks are announced when payments open. Nothing can be deposited in this build.</p>
+          <Specimen />
         </div>
       </section>
       <Faq />

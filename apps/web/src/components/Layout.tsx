@@ -22,6 +22,12 @@ const SECTION_LINKS: NavItem[] = [
   { label: "Billing", to: "/", hash: "#billing" },
   { label: "FAQ", to: "/", hash: "#faq" },
 ];
+const HOME_LINKS: NavItem[] = [
+  { label: "Overview", to: "/", hash: "#main" },
+  { label: "Platform", to: "/", hash: "#overview" },
+  { label: "For developers", to: "/", hash: "#developer-h" },
+  { label: "Principles", to: "/", hash: "#billing" },
+];
 const PAGE_LINKS: NavItem[] = [
   { label: "Setup", to: "/setup" },
   { label: "Diagnostics", to: "/diag" },
@@ -60,26 +66,27 @@ function focusables(root: HTMLElement): HTMLElement[] {
 }
 
 function Header({ menuOpen, setMenuOpen, menuButton }: { menuOpen: boolean; setMenuOpen: (v: boolean) => void; menuButton: React.RefObject<HTMLButtonElement | null> }) {
+  const home = useLocation().pathname === "/";
   return (
     <header className="site-header">
       <div className="site-header__inner">
-        <Link to="/" className="wordmark" aria-label="LLM Gateway, home">
-          <span className="wordmark__mark" aria-hidden="true">LG</span>
-          <span>LLM Gateway</span>
+        <Link to="/" className="wordmark" aria-label={home ? "Rick / AI, home" : "LLM Gateway, home"}>
+          <span className="wordmark__mark" aria-hidden="true">{home ? "RICK / AI" : "LG"}</span>
+          <span>{home ? "MODEL GATEWAY" : "LLM Gateway"}</span>
         </Link>
         <nav className="site-nav" aria-label="Primary">
           <ul>
-            {SECTION_LINKS.map((l) => (
+            {(home ? HOME_LINKS : SECTION_LINKS).map((l) => (
               <li key={l.label}><Link to={{ pathname: l.to, hash: l.hash ?? "" }}>{l.label}</Link></li>
             ))}
-            {PAGE_LINKS.map((l) => (
+            {(!home ? PAGE_LINKS : []).map((l) => (
               <li key={l.label}><NavLink to={l.to}>{l.label}</NavLink></li>
             ))}
           </ul>
         </nav>
         <div className="site-header__tools">
-          <div className="only-wide"><ThemeControl compact /></div>
-          <NavLink to="/app" className="btn btn--primary btn--small only-wide">Sign in</NavLink>
+          {!home && <div className="only-wide"><ThemeControl compact /></div>}
+          <NavLink to="/app" className="btn btn--primary btn--small only-wide">{home ? "Get access ↗" : "Sign in"}</NavLink>
           <button
             ref={menuButton}
             type="button"
@@ -168,6 +175,8 @@ function BottomNav() {
 }
 
 function Footer() {
+  const home = useLocation().pathname === "/";
+  if (home) return <footer className="site-footer home-reference-footer"><div className="container"><div className="home-footer-line"><Link to="/" className="home-footer-brand">RICK / AI</Link><nav aria-label="Footer"><ul className="footer-links">{HOME_LINKS.map((link) => <li key={link.label}><Link to={{ pathname: link.to, hash: link.hash ?? "" }}>{link.label === "For developers" ? "Developers" : link.label}</Link></li>)}</ul></nav><p>A concept by Rick Chen · Taipei, Taiwan</p></div><div className="home-footer-disclosure"><p>Pre-release concept. Account, billing and gateway features are under development.</p><ThemeControl compact /></div></div></footer>;
   return (
     <footer className="site-footer">
       <div className="container site-footer__grid">
