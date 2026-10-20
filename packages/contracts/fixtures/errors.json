@@ -1,0 +1,243 @@
+{
+  "version": "draft-0.5",
+  "cases": [
+    {
+      "name": "BAD_REQUEST",
+      "status": 400,
+      "body": {
+        "error": {
+          "code": "BAD_REQUEST",
+          "message": "Malformed JSON body",
+          "requestId": "req_example"
+        }
+      }
+    },
+    {
+      "name": "IDEMPOTENCY_KEY_REQUIRED",
+      "status": 400,
+      "body": {
+        "error": {
+          "code": "IDEMPOTENCY_KEY_REQUIRED",
+          "message": "Idempotency-Key header is required",
+          "requestId": "req_example"
+        }
+      }
+    },
+    {
+      "name": "UNAUTHENTICATED",
+      "status": 401,
+      "body": {
+        "error": {
+          "code": "UNAUTHENTICATED",
+          "message": "Sign in required",
+          "requestId": "req_example"
+        }
+      }
+    },
+    {
+      "name": "CHALLENGE_INVALID",
+      "status": 401,
+      "body": {
+        "error": {
+          "code": "CHALLENGE_INVALID",
+          "message": "Challenge is expired, consumed or the signature is invalid",
+          "requestId": "req_example"
+        }
+      }
+    },
+    {
+      "name": "FORBIDDEN",
+      "status": 403,
+      "body": {
+        "error": {
+          "code": "FORBIDDEN",
+          "message": "Operation not permitted for your role",
+          "requestId": "req_example"
+        }
+      }
+    },
+    {
+      "name": "STEP_UP_REQUIRED",
+      "status": 403,
+      "body": {
+        "error": {
+          "code": "STEP_UP_REQUIRED",
+          "message": "Recent sign-in required",
+          "requestId": "req_example"
+        }
+      }
+    },
+    {
+      "name": "NOT_FOUND",
+      "status": 404,
+      "body": {
+        "error": {
+          "code": "NOT_FOUND",
+          "message": "Resource not found",
+          "requestId": "req_example"
+        }
+      }
+    },
+    {
+      "name": "IDEMPOTENCY_CONFLICT",
+      "status": 409,
+      "body": {
+        "error": {
+          "code": "IDEMPOTENCY_CONFLICT",
+          "message": "Idempotency-Key reused with a different payload",
+          "requestId": "req_example"
+        }
+      }
+    },
+    {
+      "name": "IN_PROGRESS",
+      "status": 409,
+      "body": {
+        "error": {
+          "code": "IN_PROGRESS",
+          "message": "A request with this Idempotency-Key is still running",
+          "requestId": "req_example"
+        }
+      }
+    },
+    {
+      "name": "LAST_AUTH_METHOD",
+      "status": 409,
+      "body": {
+        "error": {
+          "code": "LAST_AUTH_METHOD",
+          "message": "Link another sign-in method before removing this one",
+          "requestId": "req_example"
+        }
+      }
+    },
+    {
+      "name": "IDENTITY_CONFLICT",
+      "status": 409,
+      "body": {
+        "error": {
+          "code": "IDENTITY_CONFLICT",
+          "message": "This wallet is already linked to another account",
+          "requestId": "req_example"
+        }
+      }
+    },
+    {
+      "name": "VERSION_CONFLICT",
+      "status": 409,
+      "body": {
+        "error": {
+          "code": "VERSION_CONFLICT",
+          "message": "expectedVersion does not match",
+          "requestId": "req_example"
+        }
+      }
+    },
+    {
+      "name": "INSUFFICIENT_FUNDS",
+      "status": 409,
+      "body": {
+        "error": {
+          "code": "INSUFFICIENT_FUNDS",
+          "message": "Available balance is too low",
+          "requestId": "req_example"
+        }
+      }
+    },
+    {
+      "name": "VALIDATION_FAILED",
+      "status": 422,
+      "body": {
+        "error": {
+          "code": "VALIDATION_FAILED",
+          "message": "Validation failed",
+          "requestId": "req_example",
+          "fieldErrors": [
+            {
+              "field": "amountAtomic",
+              "message": "Below minimum deposit"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "RATE_LIMITED",
+      "status": 429,
+      "body": {
+        "error": {
+          "code": "RATE_LIMITED",
+          "message": "Too many requests",
+          "requestId": "req_example"
+        }
+      },
+      "retryAfterSeconds": 30
+    },
+    {
+      "name": "INTERNAL",
+      "status": 500,
+      "body": {
+        "error": {
+          "code": "INTERNAL",
+          "message": "Unexpected error",
+          "requestId": "req_example"
+        }
+      }
+    },
+    {
+      "name": "UPSTREAM_ERROR",
+      "status": 502,
+      "body": {
+        "error": {
+          "code": "UPSTREAM_ERROR",
+          "message": "Dependency returned an invalid response",
+          "requestId": "req_example"
+        }
+      }
+    },
+    {
+      "name": "UNAVAILABLE",
+      "status": 503,
+      "body": {
+        "error": {
+          "code": "UNAVAILABLE",
+          "message": "Service temporarily unavailable",
+          "requestId": "req_example"
+        }
+      }
+    },
+    {
+      "name": "UPSTREAM_TIMEOUT",
+      "status": 504,
+      "body": {
+        "error": {
+          "code": "UPSTREAM_TIMEOUT",
+          "message": "Dependency timed out",
+          "requestId": "req_example"
+        }
+      }
+    },
+    {
+      "name": "FEATURE_DISABLED",
+      "status": 404,
+      "body": {
+        "error": {
+          "code": "FEATURE_DISABLED",
+          "message": "This beta feature is switched off in this deployment",
+          "requestId": "req_example"
+        }
+      }
+    },
+    {
+      "name": "PAYLOAD_TOO_LARGE",
+      "status": 413,
+      "body": {
+        "error": {
+          "code": "PAYLOAD_TOO_LARGE",
+          "message": "Body is larger than 26214400 bytes",
+          "requestId": "req_example"
+        }
+      }
+    }
+  ]
+}

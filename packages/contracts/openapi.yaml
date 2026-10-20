@@ -1,0 +1,2718 @@
+openapi: 3.1.0
+info:
+  title: LLM Gateway console API
+  version: draft-0.5
+  description: >
+    Snapshot of SPEC.md "Shared contract snapshot: draft-0.3". Zod schemas in src/ are the
+    executable source; tests/contracts/schema.test.ts keeps both in agreement with the fixtures.
+    /v1/* routes keep upstream-compatible request/response shapes (documented here at the level the gateway guarantees) and their own error envelopes; the console ErrorEnvelope applies only under /api.
+servers:
+  - url: /
+tags:
+  - name: console
+paths:
+  /api/auth/wallet/challenges:
+    post:
+      operationId: createWalletChallenge
+      summary: >
+        Create a single-use sign-in challenge (public, origin restricted, rate limited). For purpose=login the response also sets an HttpOnly, SameSite=Strict
+        cookie wc_{challengeId} (Path=/api/auth/wallet/sessions, lives as long as the challenge). The browser must send it back when creating the session
+        (fetch with credentials); without it the session is refused with CHALLENGE_INVALID.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/WalletChallengeRequest' } } } }
+      responses:
+        '201': { description: Challenge, content: { application/json: { schema: { $ref: '#/components/schemas/WalletChallenge' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/auth/wallet/sessions:
+    post:
+      operationId: createWalletSession
+      summary: Verify signature, consume challenge (requires the wc_{challengeId} cookie issued with it), set Secure HttpOnly SameSite session cookie
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/WalletSessionRequest' } } } }
+      responses:
+        '200': { description: Session, content: { application/json: { schema: { $ref: '#/components/schemas/SessionView' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/session:
+    get:
+      operationId: getSession
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Session view, content: { application/json: { schema: { $ref: '#/components/schemas/SessionView' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+    delete:
+      operationId: deleteSession
+      security: [{ sessionCookie: [] }]
+      responses:
+        '204': { description: Logged out }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/identities:
+    get:
+      operationId: listIdentities
+      summary: Linked wallet identities of the signed-in user
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Identities, content: { application/json: { schema: { $ref: '#/components/schemas/IdentityList' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+    post:
+      operationId: linkIdentity
+      summary: Link a new wallet using a purpose=link challenge plus its signature (current session, recent sign-in). Never merges accounts.
+      security: [{ sessionCookie: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/WalletSessionRequest' } } } }
+      responses:
+        '201': { description: Linked, content: { application/json: { schema: { $ref: '#/components/schemas/LinkedIdentity' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/identities/{id}:
+    delete:
+      operationId: unlinkIdentity
+      summary: Unlink a wallet (recent sign-in). 409 LAST_AUTH_METHOD when it is the last one.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '204': { description: Unlinked }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/auth/password/signup:
+    post:
+      operationId: signupPassword
+      summary: Create an account with username + password (argon2id). Returns the session and single-use recovery codes, shown once.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PasswordSetupRequest' } } } }
+      responses:
+        '201': { description: Account, session cookie and recovery codes, content: { application/json: { schema: { $ref: '#/components/schemas/PasswordSignupResponse' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/auth/password/sessions:
+    post:
+      operationId: createPasswordSession
+      summary: Password sign-in. Every failure (unknown user, wrong password, locked) is the same generic 401 until the attempt limit, then 429.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PasswordSessionRequest' } } } }
+      responses:
+        '200': { description: Session, content: { application/json: { schema: { $ref: '#/components/schemas/SessionView' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/auth/password/recovery:
+    post:
+      operationId: recoverPassword
+      summary: Spend one recovery code to set a new password; revokes all sessions. Email recovery is BLOCKED (no provider).
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PasswordRecoveryRequest' } } } }
+      responses:
+        '204': { description: Password changed; sign in again }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/auth/password:
+    post:
+      operationId: linkPassword
+      summary: Add a password to the signed-in user (existing session, recent sign-in, not an API-key session). Returns recovery codes once.
+      security: [{ sessionCookie: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PasswordSetupRequest' } } } }
+      responses:
+        '201': { description: Linked, content: { application/json: { schema: { $ref: '#/components/schemas/RecoveryCodes' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+    delete:
+      operationId: unlinkPassword
+      summary: Remove the password (recent sign-in). 409 LAST_AUTH_METHOD when it is the last method. Revokes sessions it created.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '204': { description: Removed }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/auth/recovery-codes:
+    post:
+      operationId: regenerateRecoveryCodes
+      summary: Invalidate old recovery codes and issue a fresh set once (recent sign-in).
+      security: [{ sessionCookie: [] }]
+      responses:
+        '201': { description: New codes, content: { application/json: { schema: { $ref: '#/components/schemas/RecoveryCodes' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/auth/telegram/codes:
+    post:
+      operationId: createTelegramCode
+      summary: Issue a single-use code to send to the Telegram bot. link and step_up need a session; login is public and rate limited.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TelegramCodeRequest' } } } }
+      responses:
+        '201': { description: Code, content: { application/json: { schema: { $ref: '#/components/schemas/TelegramCode' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/auth/telegram/sessions:
+    post:
+      operationId: createTelegramSession
+      summary: Verify a login code through the TelegramBot port; consumes it exactly once. Unknown Telegram ids create an account.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TelegramVerifyRequest' } } } }
+      responses:
+        '200': { description: Session, content: { application/json: { schema: { $ref: '#/components/schemas/SessionView' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/auth/telegram/identities:
+    post:
+      operationId: linkTelegram
+      summary: Link the Telegram account that sent a purpose=link code (existing session, recent sign-in). Never merges accounts.
+      security: [{ sessionCookie: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TelegramVerifyRequest' } } } }
+      responses:
+        '201': { description: Linked, content: { application/json: { schema: { $ref: '#/components/schemas/TelegramIdentity' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/auth/telegram/identities/{id}:
+    delete:
+      operationId: unlinkTelegram
+      summary: Unlink Telegram (recent sign-in); revokes sessions it created. 409 LAST_AUTH_METHOD when last.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '204': { description: Unlinked }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/auth/key-sessions:
+    post:
+      operationId: createKeySession
+      summary: Restricted console session from an API key with usage:read. Only that key's own usage; no secrets, identity or security changes, no key management, no exports.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/KeySessionRequest' } } } }
+      responses:
+        '200': { description: Restricted session, content: { application/json: { schema: { $ref: '#/components/schemas/SessionView' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/auth/methods:
+    get:
+      operationId: getAuthMethods
+      summary: Every sign-in method of the signed-in user (not available to API-key sessions).
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Methods, content: { application/json: { schema: { $ref: '#/components/schemas/AuthMethods' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /api/session/renew:
+    post:
+      operationId: renewSession
+      summary: Rotate the cookie token and extend expiry up to the absolute session lifetime. Does not refresh step-up.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Renewed session, content: { application/json: { schema: { $ref: '#/components/schemas/SessionView' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/session/step-up:
+    post:
+      operationId: stepUp
+      summary: Re-prove a non-wallet method ({password} or Telegram {codeId}) so privileged mutations are allowed again. Wallet sessions sign in again.
+      security: [{ sessionCookie: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/StepUpRequest' } } } }
+      responses:
+        '204': { description: Step-up recorded }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/catalog:
+    get:
+      operationId: getCatalog
+      summary: Public catalog with pricing version; no provider credentials
+      parameters:
+        - { name: provider, in: query, schema: { type: string } }
+        - { name: search, in: query, schema: { type: string } }
+      responses:
+        '200': { description: Catalog, content: { application/json: { schema: { $ref: '#/components/schemas/CatalogResponse' } } } }
+  /api/accounts/current/balance:
+    get:
+      operationId: getBalance
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Balance (account member), content: { application/json: { schema: { $ref: '#/components/schemas/Balance' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/keys:
+    post:
+      operationId: createKey
+      summary: Create a scoped key (owner/admin, recent sign-in). Secret shown once.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateKeyRequest' } } } }
+      responses:
+        '201': { description: Key, content: { application/json: { schema: { $ref: '#/components/schemas/CreateKeyResponse' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+    get:
+      operationId: listKeys
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { description: Key metadata page, content: { application/json: { schema: { $ref: '#/components/schemas/KeyList' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /api/keys/{id}:
+    delete:
+      operationId: revokeKey
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '204': { description: Revoked }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/deposits:
+    post:
+      operationId: createDeposit
+      summary: Create a deposit intent (owner/billing)
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateDepositRequest' } } } }
+      responses:
+        '201': { description: Deposit intent, content: { application/json: { schema: { $ref: '#/components/schemas/Deposit' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    get:
+      operationId: listDeposits
+      summary: List deposit intents of the current account (owner/billing)
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { description: Deposit page, content: { application/json: { schema: { $ref: '#/components/schemas/DepositList' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /api/deposits/networks:
+    get:
+      operationId: listPaymentNetworks
+      summary: Configured (network, asset) pairs; items is empty when no payment networks are configured (owner/billing)
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Configured pairs, content: { application/json: { schema: { $ref: '#/components/schemas/PaymentNetworkList' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /api/deposits/{id}:
+    get:
+      operationId: getDeposit
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Intent, confirmation and credit status, content: { application/json: { schema: { $ref: '#/components/schemas/Deposit' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/usage:
+    get:
+      operationId: listUsage
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: model, in: query, schema: { type: string } }
+        - { name: projectId, in: query, schema: { type: string } }
+        - { name: keyId, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/RequestState' } }
+        - { name: runId, in: query, schema: { type: string } }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { description: Usage page (granted projects only), content: { application/json: { schema: { $ref: '#/components/schemas/UsagePage' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/usage/{id}:
+    get:
+      operationId: getUsageDetail
+      summary: Authorized request detail with frozen rates and customer ledger postings; accepts usage or request id
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+      responses:
+        '200': { description: Request detail, content: { application/json: { schema: { $ref: '#/components/schemas/UsageDetail' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/usage/agent-runs:
+    get:
+      operationId: listAgentRuns
+      summary: Requests grouped by X-Run-Id and project. Requests with no run id are one unknown bucket per project.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: projectId, in: query, schema: { type: string } }
+        - { name: keyId, in: query, schema: { type: string } }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { description: Run groups, content: { application/json: { schema: { $ref: '#/components/schemas/AgentRunPage' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/ledger:
+    get:
+      operationId: listLedger
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: kind, in: query, schema: { $ref: '#/components/schemas/LedgerKind' } }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { description: Ledger page (billing role), content: { application/json: { schema: { $ref: '#/components/schemas/LedgerPage' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /api/exports:
+    post:
+      operationId: createExport
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateExportRequest' } } } }
+      responses:
+        '202': { description: Accepted, content: { application/json: { schema: { $ref: '#/components/schemas/ExportAccepted' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /api/jobs/{id}:
+    get:
+      operationId: getJob
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Job status, content: { application/json: { schema: { $ref: '#/components/schemas/Job' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/jobs/{id}/download:
+    get:
+      operationId: downloadJob
+      summary: Export file (CSV or JSONL) for a succeeded, unexpired job owned by the caller. 404 after expiry.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: File, content: { text/csv: { schema: { type: string } }, application/x-ndjson: { schema: { type: string } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/projects/{id}/memories:
+    post:
+      operationId: createMemory
+      summary: Create a note at version 1 (owner/admin/member, explicit storage consent). expectedVersion, if sent, must be 0. GET lists notes.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateMemoryRequest' } } } }
+      responses:
+        '201': { description: Note, content: { application/json: { schema: { $ref: '#/components/schemas/Memory' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+    get:
+      operationId: listMemories
+      summary: Unexpired notes of the project, oldest first (owner/admin/member)
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { description: Note page, content: { application/json: { schema: { $ref: '#/components/schemas/MemoryList' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/projects:
+    post:
+      operationId: createProject
+      summary: Create a project (owner/admin). Names are unique per account, case-insensitively.
+      security: [{ sessionCookie: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateProjectRequest' } } } }
+      responses:
+        '201': { description: Project, content: { application/json: { schema: { $ref: '#/components/schemas/Project' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+    get:
+      operationId: listProjects
+      summary: Projects of the signed-in account (names only; any role)
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { description: Project page, content: { application/json: { schema: { $ref: '#/components/schemas/ProjectList' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/projects/{id}:
+    get:
+      operationId: getProject
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Project, content: { application/json: { schema: { $ref: '#/components/schemas/Project' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/projects/{id}/memories/export:
+    get:
+      operationId: exportMemories
+      summary: Download every stored note, the retention setting and usage evidence of a project as JSON
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: JSON file, content: { application/json: { schema: { $ref: '#/components/schemas/MemoryExport' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/projects/{id}/memories/usage:
+    get:
+      operationId: listMemoryUsage
+      summary: "Evidence: note N version V was injected into (or skipped for) request R. Newest first."
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: memoryId, in: query, schema: { type: string } }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { description: Usage page, content: { application/json: { schema: { $ref: '#/components/schemas/MemoryUsageList' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/projects/{id}/memories/{memoryId}:
+    get:
+      operationId: getMemory
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: memoryId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Note, content: { application/json: { schema: { $ref: '#/components/schemas/Memory' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    put:
+      operationId: updateMemory
+      summary: Replace a note's text. expectedVersion must equal the current version, else 409 VERSION_CONFLICT.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: memoryId, in: path, required: true, schema: { type: string } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UpdateMemoryRequest' } } } }
+      responses:
+        '200': { description: Note with incremented version, content: { application/json: { schema: { $ref: '#/components/schemas/Memory' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+    delete:
+      operationId: deleteMemory
+      summary: Delete a note for good. Usage evidence keeps only ids and versions.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: memoryId, in: path, required: true, schema: { type: string } }
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/projects/{id}/memory-settings:
+    get:
+      operationId: getMemorySettings
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Retention setting (version 0 = never set), content: { application/json: { schema: { $ref: '#/components/schemas/MemorySettings' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    put:
+      operationId: updateMemorySettings
+      summary: Set note retention (owner/admin). Notes expire retentionDays after their last edit; null keeps them until deleted.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UpdateMemorySettingsRequest' } } } }
+      responses:
+        '200': { description: Settings, content: { application/json: { schema: { $ref: '#/components/schemas/MemorySettings' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /api/optimization/controls:
+    get:
+      operationId: listOptimizationControls
+      summary: Each control with its privacy impact, tradeoff and availability (static)
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Controls, content: { application/json: { schema: { $ref: '#/components/schemas/OptimizationControlList' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/optimization/policy:
+    get:
+      operationId: getOptimizationPolicy
+      summary: Current policy version (0 = defaults, everything off)
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Policy, content: { application/json: { schema: { $ref: '#/components/schemas/OptimizationPolicy' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+    put:
+      operationId: updateOptimizationPolicy
+      summary: Append a new policy version (owner/admin). Enabling guidance, project context or enforcement needs a recent sign-in. An unchanged config creates no version.
+      security: [{ sessionCookie: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UpdateOptimizationPolicyRequest' } } } }
+      responses:
+        '200': { description: Resulting policy, content: { application/json: { schema: { $ref: '#/components/schemas/OptimizationPolicy' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /api/optimization/policy/revert:
+    post:
+      operationId: revertOptimizationPolicy
+      summary: Append a new version that re-applies an earlier one (0 = all off). History is never rewritten.
+      security: [{ sessionCookie: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RevertOptimizationPolicyRequest' } } } }
+      responses:
+        '200': { description: Resulting policy, content: { application/json: { schema: { $ref: '#/components/schemas/OptimizationPolicy' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /api/optimization/policy/versions:
+    get:
+      operationId: listOptimizationPolicyVersions
+      summary: Policy history, newest first; the implicit version 0 is last
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { description: Versions, content: { application/json: { schema: { $ref: '#/components/schemas/OptimizationPolicyVersionList' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/optimization/preview:
+    post:
+      operationId: previewOptimization
+      summary: Show the request the provider would receive under the current policy. Nothing is sent, stored or charged.
+      security: [{ sessionCookie: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PreviewOptimizationRequest' } } } }
+      responses:
+        '200': { description: Altered request, content: { application/json: { schema: { $ref: '#/components/schemas/PreviewOptimizationResponse' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /api/optimization/evidence:
+    get:
+      operationId: listOptimizationEvidence
+      summary: Applied/skipped/advisory/blocked evidence per request and control. Never contains prompt text.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: requestId, in: query, schema: { type: string } }
+        - { name: feature, in: query, schema: { type: string, enum: [cache_accounting, concise_guidance, project_context, route_comparison, loop_guard] } }
+        - { name: status, in: query, schema: { type: string, enum: [applied, skipped, advisory, blocked] } }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { description: Evidence page, content: { application/json: { schema: { $ref: '#/components/schemas/OptimizationEvidenceList' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /api/optimization/report:
+    get:
+      operationId: getOptimizationReport
+      summary: Baseline versus actual only where the evidence is comparable; otherwise status insufficient_data
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+      responses:
+        '200': { description: Report, content: { application/json: { schema: { $ref: '#/components/schemas/OptimizationReport' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /api/connectivity/channels:
+    get:
+      operationId: listChannels
+      summary: Which notification channels have a provider wired (owner/admin). mode fake = nothing really delivered.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Channels, content: { application/json: { schema: { $ref: '#/components/schemas/ChannelStatusList' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /api/connectivity/pairings:
+    post:
+      operationId: createPairing
+      summary: Start pairing (owner/admin, recent sign-in). Returns a single-use code shown once; send it to the bot/number, then confirm.
+      security: [{ sessionCookie: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreatePairingRequest' } } } }
+      responses:
+        '201': { description: Code, content: { application/json: { schema: { $ref: '#/components/schemas/PairingCode' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/connectivity/pairings/{id}/confirm:
+    post:
+      operationId: confirmPairing
+      summary: Consume a claimed code exactly once and create the binding. Expired, unclaimed or replayed codes are 422 (field pairing).
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody: { required: false, content: { application/json: { schema: { $ref: '#/components/schemas/ConfirmPairingRequest' } } } }
+      responses:
+        '201': { description: Binding, content: { application/json: { schema: { $ref: '#/components/schemas/Binding' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/connectivity/bindings:
+    get:
+      operationId: listBindings
+      summary: Active bindings with masked destinations and event preferences (owner/admin)
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Bindings, content: { application/json: { schema: { $ref: '#/components/schemas/BindingList' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /api/connectivity/bindings/{id}:
+    put:
+      operationId: updateBinding
+      summary: Replace the event preferences of a binding
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UpdateBindingRequest' } } } }
+      responses:
+        '200': { description: Binding, content: { application/json: { schema: { $ref: '#/components/schemas/Binding' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+    delete:
+      operationId: unpairBinding
+      summary: Unpair; queued messages for it are skipped
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '204': { description: Unpaired }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/connectivity/bindings/{id}/test:
+    post:
+      operationId: sendTestNotification
+      summary: Queue one fixed test message to this binding (one per minute). Delivery is asynchronous; see deliveries.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '202': { description: Queued, content: { application/json: { schema: { $ref: '#/components/schemas/TestNotificationAccepted' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/connectivity/deliveries:
+    get:
+      operationId: listDeliveries
+      summary: Recent delivery results, newest first
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: bindingId, in: query, schema: { type: string } }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { description: Deliveries, content: { application/json: { schema: { $ref: '#/components/schemas/DeliveryList' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /api/features:
+    get:
+      operationId: getFeatures
+      summary: Public. Which BETA areas this deployment has switched on. A false flag means the area answers 404 FEATURE_DISABLED (unavailable), not that it is complete.
+      responses:
+        '200': { description: Flags, content: { application/json: { schema: { $ref: '#/components/schemas/FeatureFlags' } } } }
+  /api/projects/{id}/repository-imports:
+    post:
+      operationId: createRepositoryImport
+      summary: >
+        BETA (FEATURE_REPOSITORY_GRAPH). Upload a ZIP or tar.gz archive as the raw request body. Only stores and queues it; the worker validates
+        and analyses it (limits in docs/import-limits.md). Owner/admin/member. 413 above the size limit, 422 when the body is not a ZIP/tar.gz.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: name, in: query, schema: { type: string, minLength: 1, maxLength: 100 } }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/zip: { schema: { type: string, format: binary } }
+          application/gzip: { schema: { type: string, format: binary } }
+          application/octet-stream: { schema: { type: string, format: binary } }
+      responses:
+        '202': { description: Queued, content: { application/json: { schema: { $ref: '#/components/schemas/RepositoryImportAccepted' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '413': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    get:
+      operationId: listRepositoryImports
+      summary: BETA. Imports of the project, oldest first (owner/admin/member)
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { description: Import page, content: { application/json: { schema: { $ref: '#/components/schemas/RepositoryImportList' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/projects/{id}/repository-imports/{importId}:
+    get:
+      operationId: getRepositoryImport
+      summary: BETA. Status, stats, limits and (when failed) the rejection code of one import
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: importId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Import, content: { application/json: { schema: { $ref: '#/components/schemas/RepositoryImport' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      operationId: deleteRepositoryImport
+      summary: BETA. Real delete of the import, its queued archive, files, skipped list and edges (owner/admin or the uploader)
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: importId, in: path, required: true, schema: { type: string } }
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/projects/{id}/repository-imports/{importId}/files:
+    get:
+      operationId: listRepositoryFiles
+      summary: BETA. Imported files (paths only) with incoming/outgoing edge counts, in import order
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: importId, in: path, required: true, schema: { type: string } }
+        - { name: pathPrefix, in: query, schema: { type: string, minLength: 1, maxLength: 512 } }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { description: File page, content: { application/json: { schema: { $ref: '#/components/schemas/RepositoryFileList' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/projects/{id}/repository-imports/{importId}/edges:
+    get:
+      operationId: listRepositoryEdges
+      summary: BETA. Import edges with file and line evidence; filter by importing file, target path or target kind
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: importId, in: path, required: true, schema: { type: string } }
+        - { name: from, in: query, schema: { type: string, minLength: 1, maxLength: 512 } }
+        - { name: to, in: query, schema: { type: string, minLength: 1, maxLength: 512 } }
+        - { name: toKind, in: query, schema: { type: string, enum: [file, directory, external, unresolved] } }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { description: Edge page, content: { application/json: { schema: { $ref: '#/components/schemas/RepositoryEdgeList' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/projects/{id}/repository-imports/{importId}/graph:
+    get:
+      operationId: getRepositoryGraph
+      summary: BETA. Derived architecture view (directory roll-up of file edges, with evidence samples). 404 until the import has succeeded.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: importId, in: path, required: true, schema: { type: string } }
+        - { name: depth, in: query, schema: { type: integer, minimum: 1, maximum: 4, default: 2 } }
+      responses:
+        '200': { description: Graph, content: { application/json: { schema: { $ref: '#/components/schemas/RepositoryGraph' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /api/projects/{id}/repository-imports/{importId}/export:
+    get:
+      operationId: exportRepositoryImport
+      summary: BETA. Download the whole derived graph (files, skipped list, edges with evidence) as JSON. 404 until the import has succeeded.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: importId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: JSON file, content: { application/json: { schema: { $ref: '#/components/schemas/RepositoryExport' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/projects/{id}/designs:
+    post:
+      operationId: createDesign
+      summary: >
+        BETA (FEATURE_DESIGN_BETA). Queue a metered proposal from a brief (owner/admin/member). The body carries a cost quote (maxCostMicrousd);
+        409 INSUFFICIENT_FUNDS when the quote exceeds available credit (nothing is created).
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateDesignRequest' } } } }
+      responses:
+        '202': { description: Queued, content: { application/json: { schema: { $ref: '#/components/schemas/DesignRevisionAccepted' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    get:
+      operationId: listDesigns
+      summary: BETA. Designs of the project, oldest first
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { description: Design page, content: { application/json: { schema: { $ref: '#/components/schemas/DesignList' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/designs/{designId}:
+    get:
+      operationId: getDesign
+      summary: BETA. The design with every revision, its document, failure and cost. Poll while a revision is queued or generating.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: designId, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Design, content: { application/json: { schema: { $ref: '#/components/schemas/Design' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      operationId: deleteDesign
+      summary: BETA. Real delete of the brief, instructions and documents (owner/admin or creator). Usage and ledger rows stay (they hold no text).
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: designId, in: path, required: true, schema: { type: string } }]
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/designs/{designId}/revisions:
+    post:
+      operationId: createDesignRevision
+      summary: BETA. Queue a revision of the latest proposal. baseRevision must be the latest revision (409 VERSION_CONFLICT otherwise, or while a generation is running).
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: designId, in: path, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateDesignRevisionRequest' } } } }
+      responses:
+        '202': { description: Queued, content: { application/json: { schema: { $ref: '#/components/schemas/DesignRevisionAccepted' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/designs/{designId}/export:
+    get:
+      operationId: exportDesign
+      summary: >
+        BETA. Download a succeeded revision as an inert artifact: markdown (default, angle brackets escaped) or JSON, both labelled AI-generated.
+        Served as an attachment with a sandboxing CSP. 404 when there is no succeeded revision.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: designId, in: path, required: true, schema: { type: string } }
+        - { name: format, in: query, schema: { type: string, enum: [markdown, json], default: markdown } }
+        - { name: revision, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Artifact, content: { text/markdown: { schema: { type: string } }, application/json: { schema: { $ref: '#/components/schemas/DesignExport' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /api/audit:
+    get:
+      operationId: listAuditEvents
+      summary: Audit events of the signed-in account, newest first (owner/admin/billing). Operator actions appear with actor "operator" and no user id.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: source, in: query, schema: { type: string, enum: [all, operator], default: all } }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { description: Audit page, content: { application/json: { schema: { $ref: '#/components/schemas/AuditEventList' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /api/operator/session:
+    get:
+      operationId: getOperatorSession
+      summary: Whether the signed-in user holds an operator grant and a live elevation for this session. Any signed-in user may ask; non-operators get isOperator false.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Operator session state, content: { application/json: { schema: { $ref: '#/components/schemas/OperatorSession' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+    post:
+      operationId: startOperatorSession
+      summary: Elevate THIS session. Needs an operator grant and authentication within the last OPERATOR_STEP_UP_WINDOW_SECONDS (else 403 STEP_UP_REQUIRED). Lapses by itself.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Elevated, content: { application/json: { schema: { $ref: '#/components/schemas/OperatorSession' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+    delete:
+      operationId: endOperatorSession
+      summary: End this session's elevation
+      security: [{ sessionCookie: [] }]
+      responses:
+        '204': { description: Ended }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /api/operator/reconciliation:
+    get:
+      operationId: getReconciliationSummary
+      summary: OPERATOR. Counts of open reviews, unresolved alerts, stuck reservations, ledger mismatches and pending adjustments
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Summary, content: { application/json: { schema: { $ref: '#/components/schemas/ReconciliationSummary' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /api/operator/payment-reviews:
+    get:
+      operationId: listPaymentReviews
+      summary: OPERATOR. Manual-review queue (open by default), oldest first, all accounts
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [open, resolved], default: open } }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { description: Review page, content: { application/json: { schema: { $ref: '#/components/schemas/PaymentReviewList' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /api/operator/payment-alerts:
+    get:
+      operationId: listPaymentAlerts
+      summary: OPERATOR. Reconciliation alerts (unresolved by default)
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: resolved, in: query, schema: { type: string, enum: ['true', 'false'], default: 'false' } }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { description: Alert page, content: { application/json: { schema: { $ref: '#/components/schemas/PaymentAlertList' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /api/operator/payment-alerts/{id}/resolve:
+    post:
+      operationId: resolvePaymentAlert
+      summary: OPERATOR. Mark an alert resolved with a note (audited). Does not move money.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ResolveAlertRequest' } } } }
+      responses:
+        '200': { description: Resolved alert, content: { application/json: { schema: { $ref: '#/components/schemas/PaymentAlert' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /api/operator/stuck-reservations:
+    get:
+      operationId: listStuckReservations
+      summary: OPERATOR. Active holds older than the threshold that never finished (never dispatched, stale dispatch, usage pending past its deadline)
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Stuck holds, content: { application/json: { schema: { $ref: '#/components/schemas/StuckReservationList' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /api/operator/ledger-mismatches:
+    get:
+      operationId: listLedgerMismatches
+      summary: OPERATOR. Recomputed disagreements between ledger postings and the records that claim them (empty = consistent)
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Mismatches, content: { application/json: { schema: { $ref: '#/components/schemas/LedgerMismatchList' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /api/operator/adjustments:
+    post:
+      operationId: proposeAdjustment
+      summary: >
+        OPERATOR. Propose an append-only credit, debit or review rejection. Moves no money until a DIFFERENT operator approves. Amount bounds apply
+        (> 0 and <= the server maximum). Operators cannot adjust an account they belong to.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ProposeAdjustmentRequest' } } } }
+      responses:
+        '201': { description: Pending adjustment, content: { application/json: { schema: { $ref: '#/components/schemas/Adjustment' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+    get:
+      operationId: listAdjustments
+      summary: OPERATOR. Adjustments with derived status (pending, approved, rejected, expired), oldest first
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [pending, approved, rejected, expired] } }
+        - { name: accountId, in: query, schema: { type: string } }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { description: Adjustment page, content: { application/json: { schema: { $ref: '#/components/schemas/AdjustmentList' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /api/operator/adjustments/{id}/approve:
+    post:
+      operationId: approveAdjustment
+      summary: >
+        OPERATOR. Approve and apply: the ledger transaction posts in the same database transaction as the decision. 403 when the approver is the proposer,
+        409 when already decided or expired, 409 INSUFFICIENT_FUNDS for a debit the balance cannot cover.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody: { required: false, content: { application/json: { schema: { $ref: '#/components/schemas/DecideAdjustmentRequest' } } } }
+      responses:
+        '200': { description: Approved adjustment, content: { application/json: { schema: { $ref: '#/components/schemas/Adjustment' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /api/operator/adjustments/{id}/reject:
+    post:
+      operationId: rejectAdjustment
+      summary: OPERATOR. Decline a proposal (also needs an operator other than the proposer). No money moves.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody: { required: false, content: { application/json: { schema: { $ref: '#/components/schemas/DecideAdjustmentRequest' } } } }
+      responses:
+        '200': { description: Rejected adjustment, content: { application/json: { schema: { $ref: '#/components/schemas/Adjustment' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /v1/models:
+    get:
+      operationId: listModels
+      summary: >
+        OpenAI-compatible model discovery. Public like the reference; an Authorization header, when present, must be a live key with the gateway:invoke scope
+        (401/403 otherwise) and its model allowlist narrows the list. Upstream-compatible shape: the console ErrorEnvelope does NOT apply under /v1.
+      security: [{}, { bearerKey: [] }]
+      responses:
+        '200': { description: Model list, content: { application/json: { schema: { $ref: '#/components/schemas/ModelList' } } } }
+        '401': { $ref: '#/components/responses/OpenAIError' }
+        '403': { $ref: '#/components/responses/OpenAIError' }
+  /v1/chat/completions:
+    post:
+      operationId: createChatCompletion
+      summary: >
+        OpenAI-compatible chat completion (stream and non-stream), metered: the maximum cost is held before the provider is called and settled from verified usage.
+        Errors use the OpenAI error shape. Unsupported parameters are rejected (400 unsupported_parameter), never ignored.
+      security: [{ bearerKey: [] }, { apiKeyHeader: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ChatCompletionRequest' } } } }
+      responses:
+        '200': { description: Completion (JSON) or an SSE stream; shapes follow the upstream protocol, content: { application/json: { schema: { type: object } }, text/event-stream: { schema: { type: string } } } }
+        '400': { $ref: '#/components/responses/OpenAIError' }
+        '401': { $ref: '#/components/responses/OpenAIError' }
+        '402': { $ref: '#/components/responses/OpenAIError' }
+        '403': { $ref: '#/components/responses/OpenAIError' }
+        '404': { $ref: '#/components/responses/OpenAIError' }
+        '413': { $ref: '#/components/responses/OpenAIError' }
+        '422': { $ref: '#/components/responses/OpenAIError' }
+        '429': { $ref: '#/components/responses/OpenAIError' }
+        '500': { $ref: '#/components/responses/OpenAIError' }
+        '502': { $ref: '#/components/responses/OpenAIError' }
+        '503': { $ref: '#/components/responses/OpenAIError' }
+        '504': { $ref: '#/components/responses/OpenAIError' }
+  /v1/responses:
+    post:
+      operationId: createResponse
+      summary: OpenAI Responses-compatible endpoint (stream and non-stream, function tools passthrough). Same metering and error shape as chat completions.
+      security: [{ bearerKey: [] }, { apiKeyHeader: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ChatCompletionRequest' } } } }
+      responses:
+        '200': { description: Response (JSON) or an SSE stream, content: { application/json: { schema: { type: object } }, text/event-stream: { schema: { type: string } } } }
+        '400': { $ref: '#/components/responses/OpenAIError' }
+        '401': { $ref: '#/components/responses/OpenAIError' }
+        '402': { $ref: '#/components/responses/OpenAIError' }
+        '403': { $ref: '#/components/responses/OpenAIError' }
+        '404': { $ref: '#/components/responses/OpenAIError' }
+        '413': { $ref: '#/components/responses/OpenAIError' }
+        '422': { $ref: '#/components/responses/OpenAIError' }
+        '429': { $ref: '#/components/responses/OpenAIError' }
+        '500': { $ref: '#/components/responses/OpenAIError' }
+        '502': { $ref: '#/components/responses/OpenAIError' }
+        '503': { $ref: '#/components/responses/OpenAIError' }
+        '504': { $ref: '#/components/responses/OpenAIError' }
+  /v1/messages:
+    post:
+      operationId: createMessage
+      summary: Anthropic-compatible messages endpoint (stream and non-stream), metered like chat completions. Errors use the Anthropic error shape.
+      security: [{ apiKeyHeader: [] }, { bearerKey: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ChatCompletionRequest' } } } }
+      responses:
+        '200': { description: Message (JSON) or an SSE stream, content: { application/json: { schema: { type: object } }, text/event-stream: { schema: { type: string } } } }
+        '400': { $ref: '#/components/responses/AnthropicError' }
+        '401': { $ref: '#/components/responses/AnthropicError' }
+        '402': { $ref: '#/components/responses/AnthropicError' }
+        '403': { $ref: '#/components/responses/AnthropicError' }
+        '404': { $ref: '#/components/responses/AnthropicError' }
+        '413': { $ref: '#/components/responses/AnthropicError' }
+        '422': { $ref: '#/components/responses/AnthropicError' }
+        '429': { $ref: '#/components/responses/AnthropicError' }
+        '500': { $ref: '#/components/responses/AnthropicError' }
+        '502': { $ref: '#/components/responses/AnthropicError' }
+        '503': { $ref: '#/components/responses/AnthropicError' }
+        '504': { $ref: '#/components/responses/AnthropicError' }
+  /v1beta/models/{target}:
+    post:
+      operationId: generateContentNotImplemented
+      summary: Gemini generateContent is NOT implemented; every call answers 501 protocol_not_implemented (the catalog may still list a sample model for it).
+      parameters: [{ name: target, in: path, required: true, schema: { type: string } }]
+      responses:
+        '501': { $ref: '#/components/responses/OpenAIError' }
+components:
+  securitySchemes:
+    sessionCookie: { type: apiKey, in: cookie, name: session }
+    bearerKey: { type: http, scheme: bearer, description: 'Gateway API key (sk_...) with the gateway:invoke scope' }
+    apiKeyHeader: { type: apiKey, in: header, name: x-api-key }
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Printable ASCII, 8-255 chars. Same key+payload replays; changed payload 409 IDEMPOTENCY_CONFLICT; in flight 409 IN_PROGRESS.
+      schema: { type: string, minLength: 8, maxLength: 255, pattern: '^[\x21-\x7e]+$' }
+    Cursor: { name: cursor, in: query, schema: { type: string, minLength: 1, maxLength: 512 } }
+    Limit: { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+  responses:
+    OpenAIError:
+      description: OpenAI-shaped error
+      content: { application/json: { schema: { $ref: '#/components/schemas/OpenAIErrorEnvelope' } } }
+    AnthropicError:
+      description: Anthropic-shaped error
+      content: { application/json: { schema: { $ref: '#/components/schemas/AnthropicErrorEnvelope' } } }
+    Error:
+      description: Error envelope
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    RateLimited:
+      description: Rate limited
+      headers: { Retry-After: { required: true, schema: { type: integer, minimum: 0 } } }
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+  schemas:
+    Id: { type: string, minLength: 1, maxLength: 128 }
+    Timestamp: { type: string, format: date-time, description: UTC RFC 3339 }
+    AtomicAmount: { type: string, pattern: '^(0|[1-9][0-9]*)$', description: Non-negative integer decimal string }
+    Microusd: { type: string, pattern: '^(0|[1-9][0-9]*)$', description: Micro-USD integer decimal string (six fractional USD digits) }
+    SignedMicrousd: { type: string, pattern: '^(0|-?[1-9][0-9]*)$' }
+    ErrorCode:
+      type: string
+      enum: [BAD_REQUEST, IDEMPOTENCY_KEY_REQUIRED, UNAUTHENTICATED, CHALLENGE_INVALID, FORBIDDEN, STEP_UP_REQUIRED, NOT_FOUND, FEATURE_DISABLED, IDEMPOTENCY_CONFLICT, IN_PROGRESS, IDENTITY_CONFLICT, LAST_AUTH_METHOD, VERSION_CONFLICT, INSUFFICIENT_FUNDS, PAYLOAD_TOO_LARGE, VALIDATION_FAILED, RATE_LIMITED, INTERNAL, UPSTREAM_ERROR, UNAVAILABLE, UPSTREAM_TIMEOUT]
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      additionalProperties: false
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId]
+          additionalProperties: false
+          properties:
+            code: { $ref: '#/components/schemas/ErrorCode' }
+            message: { type: string, minLength: 1 }
+            requestId: { type: string, minLength: 1 }
+            fieldErrors:
+              type: array
+              items:
+                type: object
+                required: [field, message]
+                additionalProperties: false
+                properties: { field: { type: string, minLength: 1 }, message: { type: string, minLength: 1 } }
+    WalletChallengeRequest:
+      type: object
+      required: [protocol, address, chainId]
+      additionalProperties: false
+      properties:
+        protocol: { type: string, enum: [evm, tron] }
+        address: { type: string, minLength: 1, maxLength: 128 }
+        chainId: { type: string, minLength: 1, maxLength: 64 }
+        purpose: { type: string, enum: [login, link], description: 'Default login. link requires a current session.' }
+    WalletChallenge:
+      type: object
+      required: [challengeId, message, expiresAt]
+      additionalProperties: false
+      properties:
+        challengeId: { $ref: '#/components/schemas/Id' }
+        message: { type: string, minLength: 1 }
+        expiresAt: { $ref: '#/components/schemas/Timestamp' }
+    WalletSessionRequest:
+      type: object
+      required: [challengeId, signature]
+      additionalProperties: false
+      properties:
+        challengeId: { $ref: '#/components/schemas/Id' }
+        signature: { type: string, minLength: 1, maxLength: 2048 }
+    SessionView:
+      type: object
+      required: [user, account, membership, expiresAt]
+      additionalProperties: false
+      properties:
+        user:
+          type: object
+          required: [id, createdAt]
+          additionalProperties: false
+          properties: { id: { $ref: '#/components/schemas/Id' }, createdAt: { $ref: '#/components/schemas/Timestamp' } }
+        account:
+          type: object
+          required: [id, name]
+          additionalProperties: false
+          properties: { id: { $ref: '#/components/schemas/Id' }, name: { type: [string, 'null'] } }
+        membership:
+          type: object
+          required: [id, accountId, userId, role]
+          additionalProperties: false
+          properties:
+            id: { $ref: '#/components/schemas/Id' }
+            accountId: { $ref: '#/components/schemas/Id' }
+            userId: { $ref: '#/components/schemas/Id' }
+            role: { type: string, enum: [owner, admin, billing, member] }
+        expiresAt: { $ref: '#/components/schemas/Timestamp' }
+        sessionKind: { $ref: '#/components/schemas/SessionKind' }
+        restricted: { type: boolean }
+    SessionKind: { type: string, enum: [wallet, password, telegram, api_key] }
+    LinkedIdentity:
+      type: object
+      required: [id, protocol, address, chainPolicy, createdAt]
+      additionalProperties: false
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        protocol: { type: string, enum: [evm, tron] }
+        address: { type: string, minLength: 1 }
+        chainPolicy: { type: string, minLength: 1 }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+    IdentityList:
+      type: object
+      required: [items]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/LinkedIdentity' } }
+    CatalogModel:
+      type: object
+      required: [id, provider, displayName, protocols, inputMicrousdPerMtok, cachedInputMicrousdPerMtok, outputMicrousdPerMtok, contextWindowTokens, updatedAt, source]
+      additionalProperties: false
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        provider: { type: string, minLength: 1 }
+        displayName: { type: string, minLength: 1 }
+        protocols:
+          type: array
+          minItems: 1
+          items: { type: string, enum: [openai_chat, openai_responses, anthropic_messages, gemini_generate_content] }
+        inputMicrousdPerMtok: { $ref: '#/components/schemas/Microusd' }
+        cachedInputMicrousdPerMtok: { oneOf: [{ $ref: '#/components/schemas/Microusd' }, { type: 'null' }] }
+        outputMicrousdPerMtok: { $ref: '#/components/schemas/Microusd' }
+        contextWindowTokens: { $ref: '#/components/schemas/AtomicAmount' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+        source: { type: string, minLength: 1, description: 'Provenance label, e.g. sample-seed for fabricated demo data' }
+    CatalogResponse:
+      type: object
+      required: [pricingVersion, items]
+      additionalProperties: false
+      properties:
+        pricingVersion: { $ref: '#/components/schemas/Id' }
+        items: { type: array, items: { $ref: '#/components/schemas/CatalogModel' } }
+    Balance:
+      type: object
+      required: [availableMicrousd, heldMicrousd, postedMicrousd, asOf]
+      additionalProperties: false
+      properties:
+        availableMicrousd: { $ref: '#/components/schemas/Microusd' }
+        heldMicrousd: { $ref: '#/components/schemas/Microusd' }
+        postedMicrousd: { $ref: '#/components/schemas/Microusd' }
+        asOf: { $ref: '#/components/schemas/Timestamp' }
+    KeyScope: { type: string, enum: ['gateway:invoke', 'usage:read'] }
+    CreateKeyRequest:
+      type: object
+      required: [name, scopes, modelAllowlist]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        projectId: { $ref: '#/components/schemas/Id' }
+        scopes: { type: array, minItems: 1, items: { $ref: '#/components/schemas/KeyScope' } }
+        modelAllowlist: { type: array, items: { type: string, minLength: 1 } }
+        spendCapMicrousd: { $ref: '#/components/schemas/Microusd' }
+        expiresAt: { $ref: '#/components/schemas/Timestamp' }
+    ApiKey:
+      type: object
+      required: [id, name, projectId, prefix, scopes, modelAllowlist, spendCapMicrousd, expiresAt, createdAt, lastUsedAt, revokedAt]
+      additionalProperties: false
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        name: { type: string }
+        projectId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+        prefix: { type: string, minLength: 1 }
+        scopes: { type: array, items: { $ref: '#/components/schemas/KeyScope' } }
+        modelAllowlist: { type: array, items: { type: string } }
+        spendCapMicrousd: { oneOf: [{ $ref: '#/components/schemas/Microusd' }, { type: 'null' }] }
+        expiresAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        lastUsedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+        revokedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+    CreateKeyResponse:
+      description: PROVIDED on first create or same-session replay in the window; NON_RECOVERABLE afterwards (never mints a second key).
+      oneOf:
+        - type: object
+          required: [key, secretStatus, secret]
+          additionalProperties: false
+          properties:
+            key: { $ref: '#/components/schemas/ApiKey' }
+            secretStatus: { const: PROVIDED }
+            secret: { type: string, minLength: 1 }
+        - type: object
+          required: [key, secretStatus, secret]
+          additionalProperties: false
+          properties:
+            key: { $ref: '#/components/schemas/ApiKey' }
+            secretStatus: { const: NON_RECOVERABLE }
+            secret: { type: 'null' }
+    KeyList:
+      type: object
+      required: [items, nextCursor]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/ApiKey' } }
+        nextCursor: { type: [string, 'null'] }
+    DepositStatus: { type: string, enum: [CREATED, DETECTED, CONFIRMING, CREDITED, EXPIRED, REVIEW_REQUIRED, REVERSED] }
+    CreateDepositRequest:
+      type: object
+      required: [asset, network, amountAtomic]
+      additionalProperties: false
+      properties:
+        asset: { type: string, minLength: 1, maxLength: 32 }
+        network: { type: string, minLength: 1, maxLength: 32 }
+        amountAtomic: { $ref: '#/components/schemas/AtomicAmount' }
+    DepositReviewReason: { type: string, enum: [UNDERPAID, OVERPAID, WRONG_NETWORK, WRONG_CHAIN, WRONG_ASSET, WRONG_DESTINATION, LATE_PAYMENT, DUPLICATE_PAYMENT, ZERO_CREDIT, REAPPEARED_AFTER_REVERSAL] }
+    Deposit:
+      type: object
+      required: [id, asset, decimals, requiredConfirmations, createdAt, address, assetContract, network, amountAtomic, expiresAt, status, confirmations, creditedMicrousd, ledgerTransactionId, reviewReason]
+      additionalProperties: false
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        asset: { type: string, minLength: 1 }
+        decimals: { type: integer, minimum: 0 }
+        requiredConfirmations: { type: integer, minimum: 1 }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        reviewReason: { oneOf: [{ $ref: '#/components/schemas/DepositReviewReason' }, { type: 'null' }] }
+        address: { type: string, minLength: 1 }
+        assetContract: { type: [string, 'null'] }
+        network: { type: string, minLength: 1 }
+        amountAtomic: { $ref: '#/components/schemas/AtomicAmount' }
+        expiresAt: { $ref: '#/components/schemas/Timestamp' }
+        status: { $ref: '#/components/schemas/DepositStatus' }
+        confirmations: { type: integer, minimum: 0 }
+        creditedMicrousd: { oneOf: [{ $ref: '#/components/schemas/Microusd' }, { type: 'null' }] }
+        ledgerTransactionId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+    DepositList:
+      type: object
+      required: [items, nextCursor]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Deposit' } }
+        nextCursor: { type: [string, 'null'] }
+    PaymentNetwork:
+      type: object
+      required: [network, asset, chainId, assetContract, decimals, requiredConfirmations, expirySeconds, minAmountAtomic, maxAmountAtomic]
+      additionalProperties: false
+      properties:
+        network: { type: string, minLength: 1 }
+        asset: { type: string, minLength: 1 }
+        chainId: { type: string, minLength: 1 }
+        assetContract: { type: [string, 'null'] }
+        decimals: { type: integer, minimum: 0 }
+        requiredConfirmations: { type: integer, minimum: 1 }
+        expirySeconds: { type: integer, minimum: 1 }
+        minAmountAtomic: { $ref: '#/components/schemas/AtomicAmount' }
+        maxAmountAtomic: { oneOf: [{ $ref: '#/components/schemas/AtomicAmount' }, { type: 'null' }] }
+    PaymentNetworkList:
+      type: object
+      required: [items]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/PaymentNetwork' } }
+    PasswordSetupRequest:
+      type: object
+      required: [username, password]
+      additionalProperties: false
+      properties:
+        username: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$' }
+        password: { type: string, minLength: 12, maxLength: 128 }
+    PasswordSessionRequest:
+      type: object
+      required: [username, password]
+      additionalProperties: false
+      properties:
+        username: { type: string, minLength: 1, maxLength: 64 }
+        password: { type: string, minLength: 1, maxLength: 128 }
+    PasswordRecoveryRequest:
+      type: object
+      required: [username, recoveryCode, newPassword]
+      additionalProperties: false
+      properties:
+        username: { type: string, minLength: 1, maxLength: 64 }
+        recoveryCode: { type: string, minLength: 1, maxLength: 64 }
+        newPassword: { type: string, minLength: 12, maxLength: 128 }
+    RecoveryCodes:
+      type: object
+      required: [recoveryCodes, expiresAt]
+      additionalProperties: false
+      properties:
+        recoveryCodes: { type: array, minItems: 1, items: { type: string, minLength: 1 } }
+        expiresAt: { $ref: '#/components/schemas/Timestamp' }
+    PasswordSignupResponse:
+      type: object
+      required: [session, recovery]
+      additionalProperties: false
+      properties:
+        session: { $ref: '#/components/schemas/SessionView' }
+        recovery: { $ref: '#/components/schemas/RecoveryCodes' }
+    TelegramCodePurpose: { type: string, enum: [login, link, step_up] }
+    TelegramCodeRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        purpose: { $ref: '#/components/schemas/TelegramCodePurpose' }
+    TelegramCode:
+      type: object
+      required: [codeId, code, purpose, expiresAt]
+      additionalProperties: false
+      properties:
+        codeId: { $ref: '#/components/schemas/Id' }
+        code: { type: string, minLength: 1 }
+        purpose: { $ref: '#/components/schemas/TelegramCodePurpose' }
+        expiresAt: { $ref: '#/components/schemas/Timestamp' }
+    TelegramVerifyRequest:
+      type: object
+      required: [codeId]
+      additionalProperties: false
+      properties:
+        codeId: { $ref: '#/components/schemas/Id' }
+    TelegramIdentity:
+      type: object
+      required: [id, telegramUserId, createdAt]
+      additionalProperties: false
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        telegramUserId: { type: string, minLength: 1 }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+    KeySessionRequest:
+      type: object
+      required: [apiKey]
+      additionalProperties: false
+      properties:
+        apiKey: { type: string, minLength: 1, maxLength: 256 }
+    StepUpRequest:
+      oneOf:
+        - type: object
+          required: [password]
+          additionalProperties: false
+          properties: { password: { type: string, minLength: 1, maxLength: 128 } }
+        - { $ref: '#/components/schemas/TelegramVerifyRequest' }
+    AuthMethods:
+      type: object
+      required: [wallets, telegram, password]
+      additionalProperties: false
+      properties:
+        wallets: { type: array, items: { $ref: '#/components/schemas/LinkedIdentity' } }
+        telegram: { type: array, items: { $ref: '#/components/schemas/TelegramIdentity' } }
+        password:
+          oneOf:
+            - type: object
+              required: [id, username, unusedRecoveryCodes]
+              additionalProperties: false
+              properties:
+                id: { $ref: '#/components/schemas/Id' }
+                username: { type: string }
+                unusedRecoveryCodes: { type: integer, minimum: 0 }
+            - { type: 'null' }
+    AgentRun:
+      type: object
+      required: [runId, correlation, projectId, requestCount, firstAt, lastAt, inputTokens, cachedInputTokens, outputTokens, chargeMicrousd, failedCount, pendingCount, limitRejectedCount]
+      additionalProperties: false
+      properties:
+        runId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+        correlation: { type: string, enum: [known, unknown] }
+        projectId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+        requestCount: { $ref: '#/components/schemas/AtomicAmount' }
+        firstAt: { $ref: '#/components/schemas/Timestamp' }
+        lastAt: { $ref: '#/components/schemas/Timestamp' }
+        inputTokens: { $ref: '#/components/schemas/AtomicAmount' }
+        cachedInputTokens: { $ref: '#/components/schemas/AtomicAmount' }
+        outputTokens: { $ref: '#/components/schemas/AtomicAmount' }
+        chargeMicrousd: { $ref: '#/components/schemas/Microusd' }
+        failedCount: { $ref: '#/components/schemas/AtomicAmount' }
+        pendingCount: { $ref: '#/components/schemas/AtomicAmount' }
+        limitRejectedCount: { $ref: '#/components/schemas/AtomicAmount' }
+    AgentRunPage:
+      type: object
+      required: [items, nextCursor]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/AgentRun' } }
+        nextCursor: { type: [string, 'null'] }
+    RequestState: { type: string, enum: [VALIDATED, RESERVED, DISPATCHED, SUCCEEDED, FAILED, CANCELLED, USAGE_PENDING, SETTLED] }
+    LedgerKind: { type: string, enum: [deposit, spend, adjustment, reversal] }
+    UsageRecord:
+      type: object
+      required: [id, requestId, correlationId, runId, parentId, createdAt, model, projectId, keyId, status, inputTokens, cachedInputTokens, outputTokens, chargeMicrousd, priceVersion]
+      additionalProperties: false
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        requestId: { $ref: '#/components/schemas/Id' }
+        correlationId: { type: [string, 'null'] }
+        runId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+        parentId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        model: { type: string, minLength: 1 }
+        projectId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+        keyId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+        status: { $ref: '#/components/schemas/RequestState' }
+        inputTokens: { $ref: '#/components/schemas/AtomicAmount' }
+        cachedInputTokens: { $ref: '#/components/schemas/AtomicAmount' }
+        outputTokens: { $ref: '#/components/schemas/AtomicAmount' }
+        chargeMicrousd: { $ref: '#/components/schemas/Microusd' }
+        priceVersion: { $ref: '#/components/schemas/Id' }
+    UsageDetail:
+      type: object
+      required: [id, requestId, correlationId, runId, parentId, createdAt, model, projectId, keyId, status, inputTokens, cachedInputTokens, outputTokens, chargeMicrousd, priceVersion, protocol, stream, outcome, failureCode, dispatchedAt, finishedAt, latencyMs, finishReason, rateSnapshot, computedChargeMicrousd, absorbedMicrousd, ledgerTransactionId, ledgerEntries]
+      additionalProperties: false
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        requestId: { $ref: '#/components/schemas/Id' }
+        correlationId: { type: [string, 'null'] }
+        runId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+        parentId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        model: { type: string, minLength: 1 }
+        projectId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+        keyId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+        status: { $ref: '#/components/schemas/RequestState' }
+        inputTokens: { $ref: '#/components/schemas/AtomicAmount' }
+        cachedInputTokens: { $ref: '#/components/schemas/AtomicAmount' }
+        outputTokens: { $ref: '#/components/schemas/AtomicAmount' }
+        chargeMicrousd: { $ref: '#/components/schemas/Microusd' }
+        priceVersion: { $ref: '#/components/schemas/Id' }
+        protocol: { type: string, enum: [openai_chat, openai_responses, anthropic_messages] }
+        stream: { type: boolean }
+        outcome: { type: [string, 'null'], enum: [succeeded, failed, cancelled, usage_unresolved, rejected, null] }
+        failureCode: { type: [string, 'null'] }
+        dispatchedAt: { type: [string, 'null'], format: date-time }
+        finishedAt: { type: [string, 'null'], format: date-time }
+        latencyMs: { type: [integer, 'null'], minimum: 0 }
+        finishReason: { type: [string, 'null'] }
+        rateSnapshot:
+          type: object
+          additionalProperties: false
+          required: [inputMicrousdPerMtok, cachedInputMicrousdPerMtok, outputMicrousdPerMtok]
+          properties:
+            inputMicrousdPerMtok: { $ref: '#/components/schemas/Microusd' }
+            cachedInputMicrousdPerMtok: { $ref: '#/components/schemas/Microusd' }
+            outputMicrousdPerMtok: { $ref: '#/components/schemas/Microusd' }
+        computedChargeMicrousd: { $ref: '#/components/schemas/Microusd' }
+        absorbedMicrousd: { $ref: '#/components/schemas/Microusd' }
+        ledgerTransactionId: { type: [string, 'null'] }
+        ledgerEntries: { type: array, items: { $ref: '#/components/schemas/LedgerEntry' } }
+    UsagePage:
+      type: object
+      required: [items, nextCursor]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/UsageRecord' } }
+        nextCursor: { type: [string, 'null'] }
+    LedgerEntry:
+      type: object
+      required: [id, transactionId, createdAt, kind, amountMicrousd, source, priceVersion]
+      additionalProperties: false
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        transactionId: { $ref: '#/components/schemas/Id' }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        kind: { $ref: '#/components/schemas/LedgerKind' }
+        amountMicrousd: { $ref: '#/components/schemas/SignedMicrousd' }
+        source:
+          type: object
+          required: [type, id]
+          additionalProperties: false
+          properties:
+            type: { type: string, enum: [request, deposit, adjustment] }
+            id: { $ref: '#/components/schemas/Id' }
+        priceVersion: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+    LedgerPage:
+      type: object
+      required: [items, nextCursor]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/LedgerEntry' } }
+        nextCursor: { type: [string, 'null'] }
+    JobStatus: { type: string, enum: [queued, running, succeeded, failed, expired] }
+    CreateExportRequest:
+      type: object
+      required: [kind, filters, format]
+      additionalProperties: false
+      properties:
+        kind: { type: string, enum: [usage, ledger] }
+        filters:
+          type: object
+          additionalProperties: false
+          properties:
+            from: { $ref: '#/components/schemas/Timestamp' }
+            to: { $ref: '#/components/schemas/Timestamp' }
+            model: { type: string, minLength: 1 }
+            projectId: { $ref: '#/components/schemas/Id' }
+            keyId: { $ref: '#/components/schemas/Id' }
+            status: { $ref: '#/components/schemas/RequestState' }
+            runId: { $ref: '#/components/schemas/Id' }
+            kind: { $ref: '#/components/schemas/LedgerKind' }
+        format: { type: string, enum: [csv, jsonl] }
+    ExportAccepted:
+      type: object
+      required: [jobId, status]
+      additionalProperties: false
+      properties: { jobId: { $ref: '#/components/schemas/Id' }, status: { $ref: '#/components/schemas/JobStatus' } }
+    Job:
+      type: object
+      required: [jobId, status]
+      additionalProperties: false
+      properties:
+        jobId: { $ref: '#/components/schemas/Id' }
+        status: { $ref: '#/components/schemas/JobStatus' }
+        downloadUrl: { type: string, pattern: '^/', description: Same-origin path; session cookie required }
+        summary:
+          type: object
+          required: [rowCount, totalMicrousd]
+          additionalProperties: false
+          properties: { rowCount: { $ref: '#/components/schemas/AtomicAmount' }, totalMicrousd: { $ref: '#/components/schemas/SignedMicrousd' } }
+        expiresAt: { $ref: '#/components/schemas/Timestamp' }
+        error:
+          type: object
+          required: [code, message]
+          additionalProperties: false
+          properties: { code: { type: string, minLength: 1 }, message: { type: string, minLength: 1 } }
+    CreateMemoryRequest:
+      type: object
+      required: [text, storageConsent]
+      additionalProperties: false
+      properties:
+        text: { type: string, minLength: 1, maxLength: 10000 }
+        expectedVersion: { type: integer, minimum: 0 }
+        storageConsent: { const: true, description: Draft addition for the spec's explicit storage consent }
+        inject: { type: boolean, description: 'draft-0.4: eligible for scoped injection into gateway requests (default false)' }
+    Memory:
+      type: object
+      required: [id, projectId, text, version, inject, expiresAt, createdAt, updatedAt]
+      additionalProperties: false
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        projectId: { $ref: '#/components/schemas/Id' }
+        text: { type: string }
+        version: { type: integer, minimum: 1 }
+        inject: { type: boolean, description: "draft-0.4: eligible for scoped injection (still needs the project-context policy)" }
+        expiresAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }], description: "draft-0.4: retention deadline, null = kept until deleted" }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    UpdateMemoryRequest:
+      type: object
+      required: [text, expectedVersion, storageConsent]
+      additionalProperties: false
+      properties:
+        text: { type: string, minLength: 1, maxLength: 10000 }
+        expectedVersion: { type: integer, minimum: 1 }
+        storageConsent: { const: true }
+        inject: { type: boolean }
+    MemoryList:
+      type: object
+      required: [items, nextCursor]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Memory' } }
+        nextCursor: { type: [string, 'null'] }
+    MemorySettings:
+      type: object
+      required: [projectId, retentionDays, version, updatedAt]
+      additionalProperties: false
+      properties:
+        projectId: { $ref: '#/components/schemas/Id' }
+        retentionDays: { type: [integer, 'null'], minimum: 1, maximum: 365 }
+        version: { type: integer, minimum: 0 }
+        updatedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+    UpdateMemorySettingsRequest:
+      type: object
+      required: [retentionDays, expectedVersion]
+      additionalProperties: false
+      properties:
+        retentionDays: { type: [integer, 'null'], minimum: 1, maximum: 365 }
+        expectedVersion: { type: integer, minimum: 0 }
+    MemoryUsage:
+      type: object
+      required: [id, memoryId, version, requestId, status, reason, createdAt]
+      additionalProperties: false
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        memoryId: { $ref: '#/components/schemas/Id' }
+        version: { type: integer, minimum: 1 }
+        requestId: { type: string, minLength: 1 }
+        status: { type: string, enum: [injected, skipped] }
+        reason: { type: [string, 'null'] }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+    MemoryUsageList:
+      type: object
+      required: [items, nextCursor]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/MemoryUsage' } }
+        nextCursor: { type: [string, 'null'] }
+    MemoryExport:
+      type: object
+      required: [projectId, exportedAt, settings, notes, usage, usageTruncated, noteCount]
+      additionalProperties: false
+      properties:
+        projectId: { $ref: '#/components/schemas/Id' }
+        exportedAt: { $ref: '#/components/schemas/Timestamp' }
+        settings: { $ref: '#/components/schemas/MemorySettings' }
+        notes: { type: array, items: { $ref: '#/components/schemas/Memory' } }
+        usage: { type: array, items: { $ref: '#/components/schemas/MemoryUsage' } }
+        usageTruncated: { type: boolean }
+        noteCount: { $ref: '#/components/schemas/AtomicAmount' }
+    CreateProjectRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+    Project:
+      type: object
+      required: [id, name, createdAt]
+      additionalProperties: false
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        name: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+    ProjectList:
+      type: object
+      required: [items, nextCursor]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Project' } }
+        nextCursor: { type: [string, 'null'] }
+    OptimizationFeature: { type: string, enum: [cache_accounting, concise_guidance, project_context, route_comparison, loop_guard] }
+    EvidenceStatus: { type: string, enum: [applied, skipped, advisory, blocked] }
+    DetailMap:
+      type: object
+      additionalProperties: { type: [string, number, boolean, 'null'] }
+    OptimizationConfig:
+      type: object
+      required: [cacheAccounting, conciseGuidance, projectContext, routeComparison, batching, loopGuard]
+      additionalProperties: false
+      properties:
+        cacheAccounting:
+          type: object
+          required: [enabled]
+          additionalProperties: false
+          properties: { enabled: { type: boolean } }
+        conciseGuidance:
+          type: object
+          required: [enabled, text]
+          additionalProperties: false
+          properties: { enabled: { type: boolean }, text: { type: string, maxLength: 500 } }
+        projectContext:
+          type: object
+          required: [enabled, maxNotes, maxChars]
+          additionalProperties: false
+          properties: { enabled: { type: boolean }, maxNotes: { type: integer, minimum: 1, maximum: 20 }, maxChars: { type: integer, minimum: 100, maximum: 4000 } }
+        routeComparison:
+          type: object
+          required: [enabled]
+          additionalProperties: false
+          properties: { enabled: { type: boolean } }
+        batching:
+          type: object
+          required: [enabled]
+          additionalProperties: false
+          properties: { enabled: { type: boolean, description: Must be false; no provider batch API exists } }
+        loopGuard:
+          type: object
+          required: [enabled, mode, threshold, windowSeconds, enforcementConsent]
+          additionalProperties: false
+          properties:
+            enabled: { type: boolean }
+            mode: { type: string, enum: [advisory, enforce] }
+            threshold: { type: integer, minimum: 2, maximum: 1000 }
+            windowSeconds: { type: integer, minimum: 60, maximum: 86400 }
+            enforcementConsent: { type: boolean }
+    OptimizationPolicy:
+      type: object
+      required: [version, config, createdAt, createdByUserId, revertedFrom, note]
+      additionalProperties: false
+      properties:
+        version: { type: integer, minimum: 0 }
+        config: { $ref: '#/components/schemas/OptimizationConfig' }
+        createdAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+        createdByUserId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+        revertedFrom: { type: [integer, 'null'], minimum: 0 }
+        note: { type: [string, 'null'] }
+    UpdateOptimizationPolicyRequest:
+      type: object
+      required: [expectedVersion, config]
+      additionalProperties: false
+      properties:
+        expectedVersion: { type: integer, minimum: 0 }
+        config: { $ref: '#/components/schemas/OptimizationConfig' }
+        note: { type: string, maxLength: 200 }
+    RevertOptimizationPolicyRequest:
+      type: object
+      required: [toVersion, expectedVersion]
+      additionalProperties: false
+      properties:
+        toVersion: { type: integer, minimum: 0 }
+        expectedVersion: { type: integer, minimum: 0 }
+    OptimizationPolicyVersionList:
+      type: object
+      required: [items, nextCursor]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/OptimizationPolicy' } }
+        nextCursor: { type: [string, 'null'] }
+    OptimizationControl:
+      type: object
+      required: [id, feature, title, description, privacyImpact, tradeoff, availability, unavailableReason]
+      additionalProperties: false
+      properties:
+        id: { type: string, minLength: 1 }
+        feature: { type: string, enum: [cache_accounting, concise_guidance, project_context, route_comparison, batching, loop_guard] }
+        title: { type: string }
+        description: { type: string }
+        privacyImpact: { type: string }
+        tradeoff: { type: string }
+        availability: { type: string, enum: [available, unavailable] }
+        unavailableReason: { type: [string, 'null'] }
+    OptimizationControlList:
+      type: object
+      required: [items]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/OptimizationControl' } }
+    PreviewOptimizationRequest:
+      type: object
+      required: [model, messages]
+      additionalProperties: false
+      properties:
+        model: { type: string, minLength: 1 }
+        projectId: { $ref: '#/components/schemas/Id' }
+        messages:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            required: [role, content]
+            additionalProperties: false
+            properties: { role: { type: string, enum: [system, user, assistant] }, content: { type: string, minLength: 1, maxLength: 100000 } }
+    OptimizationChange:
+      type: object
+      required: [feature, status, reason, detail]
+      additionalProperties: false
+      properties:
+        feature: { $ref: '#/components/schemas/OptimizationFeature' }
+        status: { $ref: '#/components/schemas/EvidenceStatus' }
+        reason: { type: [string, 'null'] }
+        detail: { $ref: '#/components/schemas/DetailMap' }
+    PreviewOptimizationResponse:
+      type: object
+      required: [policyVersion, changes, messages, originalUtf8Bytes, alteredUtf8Bytes]
+      additionalProperties: false
+      properties:
+        policyVersion: { type: integer, minimum: 0 }
+        changes: { type: array, items: { $ref: '#/components/schemas/OptimizationChange' } }
+        messages:
+          type: array
+          items:
+            type: object
+            required: [role, content, origin]
+            additionalProperties: false
+            properties:
+              role: { type: string, enum: [system, user, assistant] }
+              content: { type: string }
+              origin: { type: string, enum: [request, guidance, project_memory] }
+        originalUtf8Bytes: { $ref: '#/components/schemas/AtomicAmount' }
+        alteredUtf8Bytes: { $ref: '#/components/schemas/AtomicAmount' }
+    OptimizationEvidence:
+      type: object
+      required: [id, requestId, policyVersion, feature, status, reason, detail, routeComparison, createdAt]
+      additionalProperties: false
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        requestId: { type: string, minLength: 1 }
+        policyVersion: { type: integer, minimum: 0 }
+        feature: { $ref: '#/components/schemas/OptimizationFeature' }
+        status: { $ref: '#/components/schemas/EvidenceStatus' }
+        reason: { type: [string, 'null'] }
+        detail: { $ref: '#/components/schemas/DetailMap' }
+        routeComparison:
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [basis, actualChargeMicrousd, alternatives]
+              additionalProperties: false
+              properties:
+                basis: { const: recorded_usage_at_current_rates }
+                actualChargeMicrousd: { $ref: '#/components/schemas/Microusd' }
+                alternatives:
+                  type: array
+                  items:
+                    type: object
+                    required: [model, estimatedChargeMicrousd]
+                    additionalProperties: false
+                    properties: { model: { type: string }, estimatedChargeMicrousd: { $ref: '#/components/schemas/Microusd' } }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+    OptimizationEvidenceList:
+      type: object
+      required: [items, nextCursor]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/OptimizationEvidence' } }
+        nextCursor: { type: [string, 'null'] }
+    OptimizationReport:
+      type: object
+      required: [period, cacheAccounting, conciseGuidance, projectContext, routeComparison, loopGuard]
+      additionalProperties: false
+      properties:
+        period:
+          type: object
+          required: [from, to]
+          additionalProperties: false
+          properties:
+            from: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+            to: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+        cacheAccounting:
+          oneOf:
+            - type: object
+              required: [status, reason, requests]
+              additionalProperties: false
+              properties: { status: { const: insufficient_data }, reason: { type: string }, requests: { $ref: '#/components/schemas/AtomicAmount' } }
+            - type: object
+              required: [status, requests, inputTokens, cachedInputTokens, outputTokens, baselineMicrousd, actualMicrousd, differenceMicrousd]
+              additionalProperties: false
+              properties:
+                status: { const: ok }
+                requests: { $ref: '#/components/schemas/AtomicAmount' }
+                inputTokens: { $ref: '#/components/schemas/AtomicAmount' }
+                cachedInputTokens: { $ref: '#/components/schemas/AtomicAmount' }
+                outputTokens: { $ref: '#/components/schemas/AtomicAmount' }
+                baselineMicrousd: { $ref: '#/components/schemas/Microusd' }
+                actualMicrousd: { $ref: '#/components/schemas/Microusd' }
+                differenceMicrousd: { $ref: '#/components/schemas/SignedMicrousd' }
+        conciseGuidance:
+          type: object
+          required: [status, reason, appliedRequests, addedUtf8Bytes]
+          additionalProperties: false
+          properties: { status: { const: insufficient_data }, reason: { type: string }, appliedRequests: { $ref: '#/components/schemas/AtomicAmount' }, addedUtf8Bytes: { $ref: '#/components/schemas/AtomicAmount' } }
+        projectContext:
+          type: object
+          required: [status, reason, appliedRequests, addedUtf8Bytes]
+          additionalProperties: false
+          properties: { status: { const: insufficient_data }, reason: { type: string }, appliedRequests: { $ref: '#/components/schemas/AtomicAmount' }, addedUtf8Bytes: { $ref: '#/components/schemas/AtomicAmount' } }
+        routeComparison:
+          type: object
+          required: [status, evaluatedRequests]
+          additionalProperties: false
+          properties: { status: { const: informational }, evaluatedRequests: { $ref: '#/components/schemas/AtomicAmount' } }
+        loopGuard:
+          type: object
+          required: [advisoryRequests, blockedRequests, note]
+          additionalProperties: false
+          properties: { advisoryRequests: { $ref: '#/components/schemas/AtomicAmount' }, blockedRequests: { $ref: '#/components/schemas/AtomicAmount' }, note: { type: string } }
+    NotificationChannel: { type: string, enum: [telegram, whatsapp] }
+    NotificationEventKind: { type: string, enum: [insufficient_funds, key_cap_reached, loop_guard, deposit_credited, deposit_needs_review] }
+    ChannelStatusList:
+      type: object
+      required: [items]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [channel, available, mode, note]
+            additionalProperties: false
+            properties:
+              channel: { $ref: '#/components/schemas/NotificationChannel' }
+              available: { type: boolean }
+              mode: { type: string, enum: [fake, live, unconfigured] }
+              note: { type: string }
+    CreatePairingRequest:
+      type: object
+      required: [channel]
+      additionalProperties: false
+      properties: { channel: { $ref: '#/components/schemas/NotificationChannel' } }
+    PairingCode:
+      type: object
+      required: [pairingId, channel, code, expiresAt]
+      additionalProperties: false
+      properties:
+        pairingId: { $ref: '#/components/schemas/Id' }
+        channel: { $ref: '#/components/schemas/NotificationChannel' }
+        code: { type: string, minLength: 1 }
+        expiresAt: { $ref: '#/components/schemas/Timestamp' }
+    ConfirmPairingRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        events: { type: array, maxItems: 5, items: { $ref: '#/components/schemas/NotificationEventKind' } }
+    Binding:
+      type: object
+      required: [id, channel, destination, events, createdAt]
+      additionalProperties: false
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        channel: { $ref: '#/components/schemas/NotificationChannel' }
+        destination: { type: string, description: Masked; only the last four characters }
+        events: { type: array, items: { $ref: '#/components/schemas/NotificationEventKind' } }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+    BindingList:
+      type: object
+      required: [items]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Binding' } }
+    UpdateBindingRequest:
+      type: object
+      required: [events]
+      additionalProperties: false
+      properties:
+        events: { type: array, maxItems: 5, items: { $ref: '#/components/schemas/NotificationEventKind' } }
+    TestNotificationAccepted:
+      type: object
+      required: [eventId, bindingId]
+      additionalProperties: false
+      properties: { eventId: { $ref: '#/components/schemas/Id' }, bindingId: { $ref: '#/components/schemas/Id' } }
+    Delivery:
+      type: object
+      required: [id, bindingId, channel, eventKind, status, attempts, errorCode, createdAt, sentAt]
+      additionalProperties: false
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        bindingId: { $ref: '#/components/schemas/Id' }
+        channel: { $ref: '#/components/schemas/NotificationChannel' }
+        eventKind: { type: string, enum: [insufficient_funds, key_cap_reached, loop_guard, deposit_credited, deposit_needs_review, test] }
+        status: { type: string, enum: [pending, sent, failed, skipped] }
+        attempts: { type: integer, minimum: 0 }
+        errorCode: { type: [string, 'null'] }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        sentAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+    DeliveryList:
+      type: object
+      required: [items, nextCursor]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Delivery' } }
+        nextCursor: { type: [string, 'null'] }
+    FeatureFlags:
+      type: object
+      required: [repositoryGraph, designBeta]
+      additionalProperties: false
+      properties:
+        repositoryGraph: { type: boolean }
+        designBeta: { type: boolean }
+    RepositoryLimits:
+      type: object
+      required: [maxArchiveBytes, maxEntries, maxFiles, maxTotalBytes, maxFileBytes, maxPathBytes, maxDepth, maxRatio, maxEdges]
+      additionalProperties: false
+      properties:
+        maxArchiveBytes: { type: integer, minimum: 1 }
+        maxEntries: { type: integer, minimum: 1 }
+        maxFiles: { type: integer, minimum: 1 }
+        maxTotalBytes: { type: integer, minimum: 1 }
+        maxFileBytes: { type: integer, minimum: 1 }
+        maxPathBytes: { type: integer, minimum: 1 }
+        maxDepth: { type: integer, minimum: 1 }
+        maxRatio: { type: integer, minimum: 1 }
+        maxEdges: { type: integer, minimum: 1 }
+        maxParseMs: { type: integer, minimum: 1 }
+        maxParseLines: { type: integer, minimum: 1 }
+    RepositoryImportStats:
+      type: object
+      required: [files, skipped, edges, edgesTruncated, externalPackages, unresolvedImports, languages, skippedByReason]
+      additionalProperties: false
+      properties:
+        files: { type: integer, minimum: 0 }
+        skipped: { type: integer, minimum: 0 }
+        edges: { type: integer, minimum: 0 }
+        edgesTruncated: { type: boolean }
+        externalPackages: { type: integer, minimum: 0 }
+        unresolvedImports: { type: integer, minimum: 0 }
+        languages: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+        skippedByReason: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+    RepositoryImportAccepted:
+      type: object
+      required: [importId, status]
+      additionalProperties: false
+      properties:
+        importId: { $ref: '#/components/schemas/Id' }
+        status: { type: string, enum: [queued, running, succeeded, failed] }
+    RepositoryImport:
+      type: object
+      required: [id, projectId, name, format, status, uploadBytes, stats, error, limits, createdAt, startedAt, finishedAt]
+      additionalProperties: false
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        projectId: { $ref: '#/components/schemas/Id' }
+        name: { type: string }
+        format: { type: string, enum: [zip, tar.gz] }
+        status: { type: string, enum: [queued, running, succeeded, failed] }
+        uploadBytes: { $ref: '#/components/schemas/AtomicAmount' }
+        stats: { oneOf: [{ $ref: '#/components/schemas/RepositoryImportStats' }, { type: 'null' }] }
+        error:
+          oneOf:
+            - type: object
+              required: [code, message]
+              additionalProperties: false
+              properties: { code: { type: string, minLength: 1 }, message: { type: string, minLength: 1 } }
+            - { type: 'null' }
+        limits: { $ref: '#/components/schemas/RepositoryLimits' }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        startedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+        finishedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+    RepositoryImportList:
+      type: object
+      required: [items, nextCursor]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/RepositoryImport' } }
+        nextCursor: { type: [string, 'null'] }
+    RepositoryFile:
+      type: object
+      required: [path, language, sizeBytes, lineCount, sha256, outgoing, incoming]
+      additionalProperties: false
+      properties:
+        path: { type: string, minLength: 1 }
+        language: { type: [string, 'null'], enum: [javascript, typescript, python, go, null] }
+        sizeBytes: { type: integer, minimum: 0 }
+        lineCount: { type: integer, minimum: 0 }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        outgoing: { type: integer, minimum: 0 }
+        incoming: { type: integer, minimum: 0 }
+    RepositoryFileList:
+      type: object
+      required: [items, nextCursor]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/RepositoryFile' } }
+        nextCursor: { type: [string, 'null'] }
+    RepositoryEdge:
+      type: object
+      required: [id, from, line, kind, specifier, to, snippet, language]
+      additionalProperties: false
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        from: { type: string, minLength: 1 }
+        line: { type: integer, minimum: 1 }
+        kind: { type: string, const: import }
+        specifier: { type: string }
+        to:
+          type: object
+          required: [kind, path, name]
+          additionalProperties: false
+          properties:
+            kind: { type: string, enum: [file, directory, external, unresolved] }
+            path: { type: [string, 'null'] }
+            name: { type: [string, 'null'] }
+        snippet: { type: string }
+        language: { type: string, enum: [javascript, typescript, python, go] }
+    RepositoryEdgeList:
+      type: object
+      required: [items, nextCursor]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/RepositoryEdge' } }
+        nextCursor: { type: [string, 'null'] }
+    RepositoryGraph:
+      type: object
+      required: [importId, depth, nodes, edges, external]
+      additionalProperties: false
+      properties:
+        importId: { $ref: '#/components/schemas/Id' }
+        depth: { type: integer, minimum: 1, maximum: 4 }
+        nodes:
+          type: array
+          items:
+            type: object
+            required: [path, files, languages]
+            additionalProperties: false
+            properties:
+              path: { type: string, minLength: 1 }
+              files: { type: integer, minimum: 0 }
+              languages: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+        edges:
+          type: array
+          items:
+            type: object
+            required: [from, to, count, evidence]
+            additionalProperties: false
+            properties:
+              from: { type: string, minLength: 1 }
+              to: { type: string, minLength: 1 }
+              count: { type: integer, minimum: 1 }
+              evidence:
+                type: array
+                items:
+                  type: object
+                  required: [path, line]
+                  additionalProperties: false
+                  properties: { path: { type: string, minLength: 1 }, line: { type: integer, minimum: 1 } }
+        external:
+          type: array
+          items:
+            type: object
+            required: [name, count]
+            additionalProperties: false
+            properties: { name: { type: string, minLength: 1 }, count: { type: integer, minimum: 1 } }
+    RepositoryExport:
+      type: object
+      required: [exportedAt, label, import, files, skipped, edges]
+      additionalProperties: false
+      properties:
+        exportedAt: { $ref: '#/components/schemas/Timestamp' }
+        label: { type: string, const: 'derived by static analysis; not executed, not verified' }
+        import: { $ref: '#/components/schemas/RepositoryImport' }
+        files: { type: array, items: { $ref: '#/components/schemas/RepositoryFile' } }
+        skipped:
+          type: array
+          items:
+            type: object
+            required: [path, reason]
+            additionalProperties: false
+            properties: { path: { type: string, minLength: 1 }, reason: { type: string, minLength: 1 } }
+        edges: { type: array, items: { $ref: '#/components/schemas/RepositoryEdge' } }
+    DesignDocument:
+      type: object
+      required: [title, summary, sections, components, risks]
+      additionalProperties: false
+      properties:
+        title: { type: string, minLength: 1, maxLength: 160 }
+        summary: { type: string, minLength: 1, maxLength: 2000 }
+        sections:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            type: object
+            required: [heading, body]
+            additionalProperties: false
+            properties: { heading: { type: string, minLength: 1, maxLength: 160 }, body: { type: string, minLength: 1, maxLength: 4000 } }
+        components:
+          type: array
+          maxItems: 30
+          items:
+            type: object
+            required: [name, purpose]
+            additionalProperties: false
+            properties: { name: { type: string, minLength: 1, maxLength: 100 }, purpose: { type: string, minLength: 1, maxLength: 600 } }
+        risks: { type: array, maxItems: 20, items: { type: string, minLength: 1, maxLength: 400 } }
+    DesignCost:
+      type: object
+      required: [state, maxMicrousd, chargedMicrousd, requestId]
+      additionalProperties: false
+      properties:
+        state: { type: string, enum: [none, reserved, charged, pending, released] }
+        maxMicrousd: { $ref: '#/components/schemas/Microusd' }
+        chargedMicrousd: { oneOf: [{ $ref: '#/components/schemas/Microusd' }, { type: 'null' }] }
+        requestId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+    DesignRevision:
+      type: object
+      required: [number, kind, instruction, status, model, aiGenerated, document, failure, cost, createdAt, finishedAt]
+      additionalProperties: false
+      properties:
+        number: { type: integer, minimum: 1 }
+        kind: { type: string, enum: [proposal, revision] }
+        instruction: { type: [string, 'null'] }
+        status: { type: string, enum: [queued, generating, succeeded, failed] }
+        model: { type: string, minLength: 1 }
+        aiGenerated: { type: boolean, const: true }
+        document: { oneOf: [{ $ref: '#/components/schemas/DesignDocument' }, { type: 'null' }] }
+        failure:
+          oneOf:
+            - type: object
+              required: [code, message]
+              additionalProperties: false
+              properties: { code: { type: string, minLength: 1 }, message: { type: string, minLength: 1 } }
+            - { type: 'null' }
+        cost: { $ref: '#/components/schemas/DesignCost' }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        finishedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+    Design:
+      type: object
+      required: [id, projectId, title, brief, model, latestRevision, totalChargedMicrousd, aiGenerated, revisions, createdAt, updatedAt]
+      additionalProperties: false
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        projectId: { $ref: '#/components/schemas/Id' }
+        title: { type: string }
+        brief: { type: string }
+        model: { type: string, minLength: 1 }
+        latestRevision: { type: integer, minimum: 1 }
+        totalChargedMicrousd: { $ref: '#/components/schemas/Microusd' }
+        aiGenerated: { type: boolean, const: true }
+        revisions: { type: array, items: { $ref: '#/components/schemas/DesignRevision' } }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    DesignSummary:
+      type: object
+      required: [id, projectId, title, model, latestRevision, latestStatus, totalChargedMicrousd, createdAt, updatedAt]
+      additionalProperties: false
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        projectId: { $ref: '#/components/schemas/Id' }
+        title: { type: string }
+        model: { type: string, minLength: 1 }
+        latestRevision: { type: integer, minimum: 1 }
+        latestStatus: { type: string, enum: [queued, generating, succeeded, failed] }
+        totalChargedMicrousd: { $ref: '#/components/schemas/Microusd' }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    DesignList:
+      type: object
+      required: [items, nextCursor]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/DesignSummary' } }
+        nextCursor: { type: [string, 'null'] }
+    CreateDesignRequest:
+      type: object
+      required: [title, brief]
+      additionalProperties: false
+      properties:
+        title: { type: string, minLength: 1, maxLength: 120 }
+        brief: { type: string, minLength: 10, maxLength: 8000 }
+        model: { $ref: '#/components/schemas/Id' }
+    CreateDesignRevisionRequest:
+      type: object
+      required: [instruction, baseRevision]
+      additionalProperties: false
+      properties:
+        instruction: { type: string, minLength: 3, maxLength: 4000 }
+        baseRevision: { type: integer, minimum: 1 }
+    DesignRevisionAccepted:
+      type: object
+      required: [designId, revision, status, maxCostMicrousd]
+      additionalProperties: false
+      properties:
+        designId: { $ref: '#/components/schemas/Id' }
+        revision: { type: integer, minimum: 1 }
+        status: { type: string, enum: [queued, generating, succeeded, failed] }
+        maxCostMicrousd: { $ref: '#/components/schemas/Microusd' }
+    DesignExport:
+      type: object
+      required: [format, label, exportedAt, design, revision, generation, document]
+      additionalProperties: false
+      properties:
+        format: { type: string, const: llmcrypto-design-export-v1 }
+        label: { type: string, const: 'AI-generated proposal. Not reviewed, not verified, never executed or deployed by this service.' }
+        exportedAt: { $ref: '#/components/schemas/Timestamp' }
+        design:
+          type: object
+          required: [id, projectId, title, brief]
+          additionalProperties: false
+          properties:
+            id: { $ref: '#/components/schemas/Id' }
+            projectId: { $ref: '#/components/schemas/Id' }
+            title: { type: string }
+            brief: { type: string }
+        revision:
+          type: object
+          required: [number, kind, instruction, createdAt]
+          additionalProperties: false
+          properties:
+            number: { type: integer, minimum: 1 }
+            kind: { type: string, enum: [proposal, revision] }
+            instruction: { type: [string, 'null'] }
+            createdAt: { $ref: '#/components/schemas/Timestamp' }
+        generation:
+          type: object
+          required: [model, requestId, chargedMicrousd]
+          additionalProperties: false
+          properties:
+            model: { type: string, minLength: 1 }
+            requestId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+            chargedMicrousd: { oneOf: [{ $ref: '#/components/schemas/Microusd' }, { type: 'null' }] }
+        document: { $ref: '#/components/schemas/DesignDocument' }
+    OperatorSession:
+      type: object
+      required: [isOperator, elevated, elevatedUntil]
+      additionalProperties: false
+      properties:
+        isOperator: { type: boolean }
+        elevated: { type: boolean }
+        elevatedUntil: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+    PaymentReview:
+      type: object
+      required: [id, kind, reason, status, accountId, depositId, chainEventId, details, createdAt, resolvedAt, resolution]
+      additionalProperties: false
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        kind: { type: string, enum: [deposit, unmatched_event, duplicate_event, reorg_reversal] }
+        reason: { type: string }
+        status: { type: string, enum: [open, resolved] }
+        accountId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+        depositId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+        chainEventId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+        details: { type: object }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        resolvedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+        resolution: { type: [string, 'null'] }
+    PaymentReviewList:
+      type: object
+      required: [items, nextCursor]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/PaymentReview' } }
+        nextCursor: { type: [string, 'null'] }
+    PaymentAlert:
+      type: object
+      required: [id, kind, severity, accountId, depositId, details, createdAt, resolvedAt]
+      additionalProperties: false
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        kind: { type: string, minLength: 1 }
+        severity: { type: string, enum: [info, warning, critical] }
+        accountId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+        depositId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+        details: { type: object }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        resolvedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+    PaymentAlertList:
+      type: object
+      required: [items, nextCursor]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/PaymentAlert' } }
+        nextCursor: { type: [string, 'null'] }
+    ResolveAlertRequest:
+      type: object
+      required: [note]
+      additionalProperties: false
+      properties:
+        note: { type: string, minLength: 3, maxLength: 500 }
+    StuckReservation:
+      type: object
+      required: [reservationId, requestId, accountId, amountMicrousd, requestState, reason, ageSeconds, createdAt]
+      additionalProperties: false
+      properties:
+        reservationId: { $ref: '#/components/schemas/Id' }
+        requestId: { $ref: '#/components/schemas/Id' }
+        accountId: { $ref: '#/components/schemas/Id' }
+        amountMicrousd: { $ref: '#/components/schemas/Microusd' }
+        requestState: { type: string, minLength: 1 }
+        reason: { type: string, enum: [not_dispatched, dispatched_stale, usage_pending_past_deadline] }
+        ageSeconds: { type: integer, minimum: 0 }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+    StuckReservationList:
+      type: object
+      required: [items, truncated]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/StuckReservation' } }
+        truncated: { type: boolean }
+    LedgerMismatch:
+      type: object
+      required: [kind, accountId, refId, expectedMicrousd, actualMicrousd, detail]
+      additionalProperties: false
+      properties:
+        kind: { type: string, enum: [unbalanced_transaction, ledger_not_zero, reservation_charge_mismatch, usage_charge_mismatch, deposit_credit_mismatch, orphan_deposit_credit, negative_balance] }
+        accountId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+        refId: { type: string, minLength: 1 }
+        expectedMicrousd: { oneOf: [{ $ref: '#/components/schemas/SignedMicrousd' }, { type: 'null' }] }
+        actualMicrousd: { oneOf: [{ $ref: '#/components/schemas/SignedMicrousd' }, { type: 'null' }] }
+        detail: { type: string }
+    LedgerMismatchList:
+      type: object
+      required: [items, truncated]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/LedgerMismatch' } }
+        truncated: { type: boolean }
+    ReconciliationSummary:
+      type: object
+      required: [generatedAt, openReviews, openAlerts, stuckReservations, ledgerMismatches, pendingAdjustments]
+      additionalProperties: false
+      properties:
+        generatedAt: { $ref: '#/components/schemas/Timestamp' }
+        openReviews: { type: integer, minimum: 0 }
+        openAlerts: { type: integer, minimum: 0 }
+        stuckReservations: { type: integer, minimum: 0 }
+        ledgerMismatches: { type: integer, minimum: 0 }
+        pendingAdjustments: { type: integer, minimum: 0 }
+    ProposeAdjustmentRequest:
+      type: object
+      required: [action, reason]
+      additionalProperties: false
+      properties:
+        accountId: { $ref: '#/components/schemas/Id' }
+        action: { type: string, enum: [credit, debit, reject_review] }
+        amountMicrousd: { $ref: '#/components/schemas/Microusd' }
+        reason: { type: string, minLength: 10, maxLength: 1000 }
+        reviewId: { $ref: '#/components/schemas/Id' }
+    DecideAdjustmentRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        reason: { type: string, minLength: 3, maxLength: 1000 }
+    Adjustment:
+      type: object
+      required: [id, accountId, action, amountMicrousd, reason, reviewId, proposedBy, status, decidedBy, decisionReason, ledgerTransactionId, createdAt, expiresAt, decidedAt]
+      additionalProperties: false
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        accountId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+        action: { type: string, enum: [credit, debit, reject_review] }
+        amountMicrousd: { $ref: '#/components/schemas/Microusd' }
+        reason: { type: string }
+        reviewId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+        proposedBy: { $ref: '#/components/schemas/Id' }
+        status: { type: string, enum: [pending, approved, rejected, expired] }
+        decidedBy: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+        decisionReason: { type: [string, 'null'] }
+        ledgerTransactionId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        expiresAt: { $ref: '#/components/schemas/Timestamp' }
+        decidedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+    AdjustmentList:
+      type: object
+      required: [items, nextCursor]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Adjustment' } }
+        nextCursor: { type: [string, 'null'] }
+    AuditEvent:
+      type: object
+      required: [id, action, actor, actorUserId, targetType, targetId, details, createdAt]
+      additionalProperties: false
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        action: { type: string, minLength: 1 }
+        actor: { type: string, enum: [member, operator, system] }
+        actorUserId: { oneOf: [{ $ref: '#/components/schemas/Id' }, { type: 'null' }] }
+        targetType: { type: [string, 'null'] }
+        targetId: { type: [string, 'null'] }
+        details: { type: object }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+    AuditEventList:
+      type: object
+      required: [items, nextCursor]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/AuditEvent' } }
+        nextCursor: { type: [string, 'null'] }
+    GatewayErrorCode:
+      type: string
+      description: >
+        Codes the gateway itself raises (code field of the OpenAI error / lower-cased type-less code of the Anthropic error). Failures that surface a console
+        error on a /v1 path use the lower-cased console ErrorCode instead (e.g. internal, unavailable).
+      enum: [context_length_exceeded, invalid_json, invalid_request, max_tokens_too_large, model_protocol_unsupported, unsupported_parameter, unsupported_value, invalid_api_key, insufficient_funds, key_spend_cap_exceeded, project_spend_cap_exceeded, insufficient_scope, model_not_allowed, project_not_permitted, model_not_found, request_too_large, estimation_unavailable, concurrency_limit_exceeded, loop_guard_blocked, rate_limit_exceeded, internal_error, protocol_not_implemented, pricing_unavailable, service_unavailable, upstream_error, upstream_timeout, client_closed_request]
+    OpenAIErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [message, type, param, code]
+          properties:
+            message: { type: string, minLength: 1 }
+            type: { type: string, enum: [authentication_error, insufficient_quota, permission_error, not_found_error, invalid_request_error, rate_limit_error, server_error] }
+            param: { type: [string, 'null'] }
+            code: { type: string, minLength: 1 }
+    AnthropicErrorEnvelope:
+      type: object
+      required: [type, error]
+      properties:
+        type: { type: string, const: error }
+        error:
+          type: object
+          required: [type, message]
+          properties:
+            type: { type: string, enum: [authentication_error, billing_error, permission_error, not_found_error, invalid_request_error, request_too_large, rate_limit_error, timeout_error, api_error] }
+            message: { type: string, minLength: 1 }
+    ModelList:
+      type: object
+      required: [object, data]
+      properties:
+        object: { type: string, const: list }
+        data:
+          type: array
+          items:
+            type: object
+            required: [id, object, created, owned_by]
+            properties:
+              id: { type: string, minLength: 1 }
+              object: { type: string, const: model }
+              created: { type: integer }
+              owned_by: { type: string }
+    ChatCompletionRequest:
+      type: object
+      required: [model, messages]
+      description: Upstream-compatible request; unsupported parameters are rejected with 400 unsupported_parameter. Only the fields every protocol shares are required here.
+      properties:
+        model: { type: string, minLength: 1 }
+        messages: { type: array, minItems: 1 }
+        stream: { type: boolean }
+        max_tokens: { type: integer, minimum: 1 }
